@@ -1,9 +1,9 @@
 "use client";
 import React, { useRef, useEffect, useState } from "react";
 
-
 // MediaPipe Object Detector
-import { ObjectDetector, FilesetResolver } from "@mediapipe/tasks-vision";
+import { ObjectDetector } from "@mediapipe/tasks-vision";
+import { getObjectDetector } from "./lib/modelCache";
 
 export default function CameraObjectDetection() {
 
@@ -32,18 +32,9 @@ export default function CameraObjectDetection() {
           );
         }
 
-        // Load MediaPipe Object Detector
-
-        const vision = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
-        );
-        detector = await ObjectDetector.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: "/efficientdet_lite0.tflite", // local path in public/
-            delegate: "GPU",
-          },
-          scoreThreshold: 0.3,
-        });
+        // Use cached AI model instead of downloading each time
+        console.log("🤖 Getting cached AI model for CameraObjectDetection...");
+        detector = await getObjectDetector();
 
         // Request camera
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
@@ -53,8 +44,8 @@ export default function CameraObjectDetection() {
         }
         setLoading(false);
         detectFrame();
-      } catch (err: any) {
-        setError(err.message || "Camera or model error");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Camera or model error");
         setLoading(false);
       }
     }
@@ -72,15 +63,24 @@ export default function CameraObjectDetection() {
 
       // Run MediaPipe detection
       const detections = await detector.detect(video);
-      detections.detections.forEach((det: any) => {
-        const box = det.boundingBox;
+      detections.detections.forEach((det: unknown) => {
+        const detection = det as {
+          boundingBox: {
+            originX: number;
+            originY: number;
+            width: number;
+            height: number;
+          };
+          categories: { categoryName: string; score: number }[];
+        };
+        const box = detection.boundingBox;
         ctx.strokeStyle = "#00FF00";
         ctx.lineWidth = 2;
         ctx.strokeRect(box.originX, box.originY, box.width, box.height);
         ctx.font = "16px Arial";
         ctx.fillStyle = "#00FF00";
-        const label = det.categories[0]?.categoryName || "object";
-        const score = det.categories[0]?.score ? Math.round(det.categories[0].score * 100) : "";
+        const label = detection.categories[0]?.categoryName || "object";
+        const score = detection.categories[0]?.score ? Math.round(detection.categories[0].score * 100) : "";
         ctx.fillText(`${label} (${score}%)`, box.originX, box.originY > 20 ? box.originY - 5 : 10);
       });
       if (isMounted) {

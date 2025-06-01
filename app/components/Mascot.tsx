@@ -5,17 +5,37 @@ import { CONFIG } from "../constants";
 interface MascotProps {
   onCountdownComplete: () => void;
   isActive: boolean;
+  serverCountdown?: number; // Use server countdown if provided
+  repositionToCorner?: boolean; // Whether to reposition to corner after countdown
 }
 
-export default function Mascot({ onCountdownComplete, isActive }: MascotProps) {
+export default function Mascot({
+  onCountdownComplete,
+  isActive,
+  serverCountdown,
+  repositionToCorner = false,
+}: MascotProps) {
   const [countdown, setCountdown] = useState<number>(
-    CONFIG.MASCOT_COUNTDOWN_SECONDS
+    serverCountdown ?? CONFIG.MASCOT_COUNTDOWN_SECONDS
   );
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isShrunken, setIsShrunken] = useState(false);
 
   // Mascot frames - simple emoji animation for now (can be replaced with actual images)
   const mascotFrames = ["🦊", "🐺", "🦝", "🐱"];
+
+  // Update countdown from server if provided
+  useEffect(() => {
+    if (serverCountdown !== undefined) {
+      setCountdown(serverCountdown);
+      if (serverCountdown === 0 && repositionToCorner) {
+        setIsShrunken(true);
+        setTimeout(() => {
+          onCountdownComplete();
+        }, 1000);
+      }
+    }
+  }, [serverCountdown, repositionToCorner, onCountdownComplete]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -25,33 +45,55 @@ export default function Mascot({ onCountdownComplete, isActive }: MascotProps) {
       setCurrentFrame((prev) => (prev + 1) % mascotFrames.length);
     }, CONFIG.MASCOT_FRAME_SWITCH_INTERVAL);
 
-    // Countdown timer
-    const countdownInterval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          setIsShrunken(true);
-          setTimeout(() => {
-            onCountdownComplete();
-          }, 1000); // Allow time for shrink animation
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    // Only run local countdown if no server countdown is provided
+    let countdownInterval: NodeJS.Timeout | undefined;
+    if (serverCountdown === undefined) {
+      countdownInterval = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            if (repositionToCorner) {
+              setIsShrunken(true);
+            }
+            setTimeout(
+              () => {
+                onCountdownComplete();
+              },
+              repositionToCorner ? 1000 : 0
+            );
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
 
     return () => {
       clearInterval(frameInterval);
-      clearInterval(countdownInterval);
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+      }
     };
-  }, [isActive, onCountdownComplete, mascotFrames.length]);
+  }, [
+    isActive,
+    onCountdownComplete,
+    mascotFrames.length,
+    serverCountdown,
+    repositionToCorner,
+  ]);
 
   if (!isActive) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+    <div
+      className={`fixed z-50 ${
+        isShrunken && repositionToCorner
+          ? "bottom-4 left-4"
+          : "inset-0 flex items-center justify-center bg-black bg-opacity-50"
+      }`}
+    >
       <div
         className={`transition-all duration-1000 ease-in-out ${
-          isShrunken ? "fixed bottom-4 left-4 w-16 h-16" : "w-48 h-48"
+          isShrunken ? "w-16 h-16" : "w-48 h-48"
         }`}
       >
         <div className="bg-white rounded-full w-full h-full flex items-center justify-center shadow-2xl border-4 border-blue-500">

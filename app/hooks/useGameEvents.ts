@@ -8,6 +8,7 @@ export function useGameEvents(playerName: string) {
     const [round, setRound] = useState<Round | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [announcements, setAnnouncements] = useState<string[]>([]);
     const eventSourceRef = useRef<EventSource | null>(null);
 
     const connect = useCallback(() => {
@@ -39,7 +40,33 @@ export function useGameEvents(playerName: string) {
                     if (data.t === "player" && data.player) {
                         setPlayer(data.player);
                     } else if (data.t === "round" && data.round) {
-                        setRound(data.round);
+                        const roundData = data.round;
+                        setRound(roundData);
+                        
+                        // Update player's ready status from round data to keep it in sync
+                        setPlayer(currentPlayer => {
+                            if (!currentPlayer) return currentPlayer;
+                            
+                            // Find this player in the round data
+                            const updatedPlayerInRound = roundData.players.find(p => p.id === currentPlayer.id);
+                            if (updatedPlayerInRound) {
+                                // Update the player state with the latest ready status from the round
+                                return {
+                                    ...currentPlayer,
+                                    isReady: updatedPlayerInRound.isReady,
+                                    itemsFound: updatedPlayerInRound.itemsFound || currentPlayer.itemsFound,
+                                };
+                            }
+                            return currentPlayer;
+                        });
+                    } else if (data.t === "announcement" && data.announcement) {
+                        // Add announcement to the list and auto-remove after 5 seconds
+                        const announcementText = data.announcement.message;
+                        setAnnouncements(prev => [...prev, announcementText]);
+
+                        setTimeout(() => {
+                            setAnnouncements(prev => prev.filter(msg => msg !== announcementText));
+                        }, 5000);
                     }
                 } catch (err) {
                     console.error("Failed to parse SSE message:", err);
@@ -94,6 +121,7 @@ export function useGameEvents(playerName: string) {
         round,
         isConnected,
         error,
+        announcements,
         connect,
         disconnect,
         isRoundActive: round?.start !== null && round?.finish === null,

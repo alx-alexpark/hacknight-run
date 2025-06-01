@@ -10,6 +10,10 @@ export default function Leaderboard() {
 
   useEffect(() => {
     fetchLeaderboard();
+
+    // Auto-refresh every 10 seconds to show updated scores
+    const interval = setInterval(fetchLeaderboard, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchLeaderboard = async () => {
@@ -47,7 +51,14 @@ export default function Leaderboard() {
         <div className="text-lg mb-4">Error: {error}</div>
         <button
           onClick={fetchLeaderboard}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 mx-auto"
+          className="px-4 py-2 text-white rounded mx-auto"
+          style={{ backgroundColor: "#800080" }}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.backgroundColor = "#6b006b")
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.backgroundColor = "#800080")
+          }
         >
           Retry
         </button>
@@ -115,7 +126,14 @@ export default function Leaderboard() {
 
       <button
         onClick={fetchLeaderboard}
-        className="w-full mt-6 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+        className="w-full mt-6 px-4 py-2 text-white rounded-lg transition-colors"
+        style={{ backgroundColor: "#800080" }}
+        onMouseEnter={(e) =>
+          (e.currentTarget.style.backgroundColor = "#6b006b")
+        }
+        onMouseLeave={(e) =>
+          (e.currentTarget.style.backgroundColor = "#800080")
+        }
       >
         🔄 Refresh
       </button>

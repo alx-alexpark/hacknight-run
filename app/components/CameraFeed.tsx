@@ -1,7 +1,8 @@
 "use client";
 import React, { useRef, useEffect, useState } from "react";
-import { ObjectDetector, FilesetResolver } from "@mediapipe/tasks-vision";
+import { ObjectDetector } from "@mediapipe/tasks-vision";
 import { FindItem } from "../types";
+import { getObjectDetector } from "../lib/modelCache";
 
 interface CameraFeedProps {
   currentItem: FindItem;
@@ -16,6 +17,24 @@ export default function CameraFeed({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Detection timing refs for 2-second detection in 3-second window
+  const detectionStartTimeRef = useRef<number | null>(null);
+  const itemFoundTriggeredRef = useRef(false);
+  const [detectionProgress, setDetectionProgress] = useState(0);
+  
+  // Performance optimization: cache lowercased target name
+  const targetNameLowerRef = useRef<string>("");
+  const lastProgressUpdateRef = useRef<number>(0);
+
+  // Reset detection state when item changes
+  useEffect(() => {
+    detectionStartTimeRef.current = null;
+    itemFoundTriggeredRef.current = false;
+    setDetectionProgress(0);
+    targetNameLowerRef.current = currentItem.name.toLowerCase();
+    lastProgressUpdateRef.current = 0;
+  }, [currentItem]);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -33,16 +52,9 @@ export default function CameraFeed({
           throw new Error("Camera access not supported");
         }
 
-        const vision = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
-        );
-        detector = await ObjectDetector.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: "/efficientdet_lite0.tflite",
-            delegate: "GPU",
-          },
-          scoreThreshold: 0.3,
-        });
+        // Use cached AI model instead of downloading each time
+        console.log("🤖 Getting cached AI model for CameraFeed...");
+        detector = await getObjectDetector();
 
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment" },
@@ -72,7 +84,9 @@ export default function CameraFeed({
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       const detections = await detector.detect(video);
-      const currentFoundObjects: string[] = [];
+      let targetDetected = false;
+      const targetNameLower = targetNameLowerRef.current;
+      const requiredConfidence = currentItem.confidence || 0.5;
 
       detections.detections.forEach((det: unknown) => {
         const detection = det as {
@@ -88,12 +102,11 @@ export default function CameraFeed({
         const label = detection.categories[0]?.categoryName || "object";
         const score = detection.categories[0]?.score || 0;
 
-        currentFoundObjects.push(label);
-
-        // Highlight target item in green, others in blue
+        // Optimize string matching - avoid repeated toLowerCase calls
+        const labelLower = label.toLowerCase();
         const isTargetItem =
-          label.toLowerCase().includes(currentItem.name.toLowerCase()) ||
-          currentItem.name.toLowerCase().includes(label.toLowerCase());
+          labelLower.includes(targetNameLower) ||
+          targetNameLower.includes(labelLower);
 
         ctx.strokeStyle = isTargetItem ? "#00FF00" : "#0080FF";
         ctx.lineWidth = isTargetItem ? 4 : 2;
@@ -108,10 +121,46 @@ export default function CameraFeed({
         );
 
         // Check if target item is found with good confidence
-        if (isTargetItem && score > 0.5) {
-          setTimeout(() => onItemFound(), 1000); // Small delay for user to see detection
+        if (isTargetItem && score > requiredConfidence) {
+          targetDetected = true;
         }
       });
+
+      // Handle continuous detection timing - optimize to reduce Date.now() calls
+      if (targetDetected && !itemFoundTriggeredRef.current) {
+        const currentTime = Date.now();
+        
+        if (detectionStartTimeRef.current === null) {
+          // Start detection timer
+          detectionStartTimeRef.current = currentTime;
+          setDetectionProgress(0);
+          lastProgressUpdateRef.current = currentTime;
+        } else {
+          // Check if detected for 2 seconds continuously
+          const totalDetectionTime = currentTime - detectionStartTimeRef.current;
+          
+          if (totalDetectionTime >= 2000) {
+            itemFoundTriggeredRef.current = true;
+            onItemFound();
+          } else {
+            // Throttle progress updates to every 100ms to reduce state updates
+            if (currentTime - lastProgressUpdateRef.current >= 100) {
+              const progress = Math.min(totalDetectionTime / 2000, 1) * 100;
+              setDetectionProgress(progress);
+              lastProgressUpdateRef.current = currentTime;
+            }
+          }
+        }
+      } else if (!targetDetected && detectionStartTimeRef.current !== null) {
+        // Reset detection if target lost (with 3-second tolerance)
+        const currentTime = Date.now();
+        const timeSinceStart = currentTime - detectionStartTimeRef.current;
+        
+        if (timeSinceStart > 3000) {
+          detectionStartTimeRef.current = null;
+          setDetectionProgress(0);
+        }
+      }
 
       if (isMounted) {
         animationId = requestAnimationFrame(detectFrame);
@@ -133,6 +182,22 @@ export default function CameraFeed({
         <h3 className="text-lg font-bold mb-2">Find: {currentItem.name}</h3>
         {currentItem.prompt && (
           <p className="text-sm italic">{currentItem.prompt}</p>
+        )}
+
+        {/* Detection progress bar */}
+        {detectionProgress > 0 && (
+          <div className="mt-3">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm">Detecting...</span>
+              <span className="text-sm">{Math.round(detectionProgress)}%</span>
+            </div>
+            <div className="w-full bg-gray-600 rounded-full h-2">
+              <div
+                className="bg-green-500 h-2 rounded-full transition-all duration-200"
+                style={{ width: `${detectionProgress}%` }}
+              ></div>
+            </div>
+          </div>
         )}
       </div>
 
@@ -164,7 +229,14 @@ export default function CameraFeed({
       {/* Manual next button (fallback) */}
       <button
         onClick={onItemFound}
-        className="absolute bottom-4 right-4 px-6 py-3 bg-blue-500 text-white rounded-lg font-bold hover:bg-blue-600 transition-colors"
+        className="absolute bottom-4 right-4 px-6 py-3 text-white rounded-lg font-bold transition-colors"
+        style={{ backgroundColor: "#800080" }}
+        onMouseEnter={(e) =>
+          (e.currentTarget.style.backgroundColor = "#6b006b")
+        }
+        onMouseLeave={(e) =>
+          (e.currentTarget.style.backgroundColor = "#800080")
+        }
       >
         Next →
       </button>

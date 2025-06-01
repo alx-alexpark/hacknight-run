@@ -1,5 +1,6 @@
 // Game state management for the scavenger hunt
-import { Player, Round, LeaderboardEntry } from '../types';
+import { Player, Round, LeaderboardEntry, FindItem } from '../types';
+import { HUNT_ITEMS } from '../constants';
 
 // In-memory storage (in production, you'd use a database)
 let currentRound: Round = {
@@ -72,12 +73,102 @@ export function setPlayerReady(playerId: string, isReady: boolean): void {
     if (player) {
         player.isReady = isReady;
 
-        // Auto-start game if all players are ready and there are at least 1 player
+        // Auto-start countdown if all players are ready and there are at least 1 player
         const allReady = currentRound.players.length > 0 &&
             currentRound.players.every(p => p.isReady);
 
-        if (allReady && !currentRound.start) {
+        if (allReady && !currentRound.start && !currentRound.countdown) {
+            startCountdown();
+        }
+
+        broadcastRoundUpdate();
+    }
+}
+
+let countdownInterval: NodeJS.Timeout | null = null;
+
+export function startCountdown(): void {
+    currentRound.countdown = 5;
+    currentRound.currentItems = selectRandomItems();
+    broadcastRoundUpdate();
+
+    countdownInterval = setInterval(() => {
+        if (currentRound.countdown && currentRound.countdown > 1) {
+            currentRound.countdown--;
+            broadcastRoundUpdate();
+        } else {
+            // Countdown finished, start the game
+            currentRound.countdown = 0;
             currentRound.start = new Date().toISOString();
+            currentRound.gameActive = true;
+
+            // Clear countdown interval
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+
+            broadcastAnnouncement({
+                message: "Game Started! Find the items!",
+                type: "game_start"
+            });
+            broadcastRoundUpdate();
+        }
+    }, 1000);
+}
+
+export function selectRandomItems(): FindItem[] {
+    const enabledItems = HUNT_ITEMS.filter(item => item.enabled);
+    const shuffled = [...enabledItems].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, 3);
+}
+
+export function stopGame(): void {
+    currentRound.finish = new Date().toISOString();
+    currentRound.gameActive = false;
+
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+    }
+
+    broadcastAnnouncement({
+        message: "Game stopped by admin",
+        type: "game_end"
+    });
+    broadcastRoundUpdate();
+}
+
+export function playerFoundItem(playerId: string, itemIndex: number, timeTaken: number): void {
+    const player = currentRound.players.find(p => p.id === playerId);
+    if (player) {
+        if (!player.itemTimes) player.itemTimes = [];
+        if (!player.itemsFound) player.itemsFound = 0;
+
+        player.itemTimes[itemIndex] = timeTaken;
+        player.itemsFound++;
+
+        // Calculate total time (average of completed items)
+        const completedTimes = player.itemTimes.filter(time => time !== undefined);
+        player.totalTime = completedTimes.reduce((sum, time) => sum + time, 0) / completedTimes.length;
+
+        const itemName = currentRound.currentItems?.[itemIndex]?.name || "item";
+
+        broadcastAnnouncement({
+            message: `${player.name} found ${itemName}!`,
+            type: "item_found",
+            playerName: player.name,
+            itemName: itemName,
+            itemCount: player.itemsFound
+        });
+
+        // Check if player completed all items
+        if (player.itemsFound === 3) {
+            addToLeaderboard({
+                name: player.name,
+                timestamp: new Date().toISOString(),
+                speed: Math.round(player.totalTime || 0)
+            });
         }
 
         broadcastRoundUpdate();
@@ -120,6 +211,28 @@ function broadcastRoundUpdate(): void {
             controller.enqueue(`data: ${JSON.stringify(message)}\n\n`);
         } catch (error) {
             console.error('Error broadcasting to SSE client:', error);
+            connectedClients.delete(controller);
+        }
+    });
+}
+
+function broadcastAnnouncement(announcement: {
+    message: string;
+    type: "item_found" | "game_start" | "game_end";
+    playerName?: string;
+    itemName?: string;
+    itemCount?: number;
+}): void {
+    const message = {
+        t: "announcement",
+        announcement
+    };
+
+    connectedClients.forEach((playerId, controller) => {
+        try {
+            controller.enqueue(`data: ${JSON.stringify(message)}\n\n`);
+        } catch (error) {
+            console.error('Error broadcasting announcement to SSE client:', error);
             connectedClients.delete(controller);
         }
     });
