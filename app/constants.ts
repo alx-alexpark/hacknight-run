@@ -1,10 +1,10 @@
 // Configuration constants
 export const CONFIG = {
-    // API Configuration
-    API_BASE_URL: "http://localhost:8000", // Change this to your actual API URL
+    // API Configuration - now using Next.js API routes
+    API_BASE_URL: "/api", // Next.js API routes
 
-    // WebSocket Configuration
-    WEBSOCKET_URL: "ws://localhost:8000/ws", // WebSocket URL for the same server
+    // Server-Sent Events URL (replaces WebSocket)
+    EVENTS_URL: "/api/events", // Server-Sent Events for real-time updates
 
     // Mascot Configuration
     MASCOT_COUNTDOWN_SECONDS: 5,

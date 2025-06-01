@@ -2,6 +2,7 @@
 export interface Player {
   id: string;
   name: string;
+  isReady?: boolean;
 }
 
 export interface FindItem {

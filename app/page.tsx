@@ -2,11 +2,11 @@
 import React, { useState, useEffect } from "react";
 import Leaderboard from "./components/Leaderboard";
 import Hunting from "./components/Hunting";
-import { useWebSocket } from "./hooks/useWebSocket";
+import { useGameEvents } from "./hooks/useGameEvents";
 
 export default function Home() {
   const [playerName, setPlayerName] = useState("");
-  const [isNameSet, setIsNameSet] = useState(false);
+  const [gameState, setGameState] = useState<"entering" | "waiting" | "playing">("entering");
   const [currentView, setCurrentView] = useState<"leaderboard" | "hunting">(
     "leaderboard"
   );
@@ -16,29 +16,42 @@ export default function Home() {
     round,
     isConnected,
     error,
-    connect,
-    disconnect,
     isRoundActive,
-  } = useWebSocket(playerName);
+  } = useGameEvents(gameState === "waiting" || gameState === "playing" ? playerName : "");
 
   useEffect(() => {
-    if (isNameSet && playerName) {
-      connect();
-    }
-  }, [isNameSet, playerName, connect]);
-
-  useEffect(() => {
-    if (isRoundActive) {
+    if (isRoundActive && gameState === "waiting") {
+      setGameState("playing");
       setCurrentView("hunting");
-    } else {
+    } else if (!isRoundActive && gameState === "playing") {
       setCurrentView("leaderboard");
     }
-  }, [isRoundActive]);
+  }, [isRoundActive, gameState]);
 
   const handleNameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (playerName.trim()) {
-      setIsNameSet(true);
+      setGameState("waiting");
+    }
+  };
+
+  const handleStartGame = async () => {
+    if (!player?.id) return;
+    
+    try {
+      const response = await fetch('/api/player-ready', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          playerId: player.id,
+          isReady: !player.isReady,
+        }),
+      });
+      if (!response.ok) throw new Error('Failed to set ready status');
+    } catch (err) {
+      console.error('Error setting ready status:', err);
     }
   };
 
@@ -47,7 +60,7 @@ export default function Home() {
   };
 
   // Name entry screen
-  if (!isNameSet) {
+  if (gameState === "entering") {
     return (
       <main className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-blue-500 to-purple-600">
         <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
@@ -75,6 +88,106 @@ export default function Home() {
               Join Game
             </button>
           </form>
+        </div>
+      </main>
+    );
+  }
+
+  // Waiting room screen
+  if (gameState === "waiting") {
+    const readyCount = round?.players?.filter(p => p.isReady).length || 0;
+    const totalPlayers = round?.players?.length || 0;
+    const allReady = totalPlayers > 0 && readyCount === totalPlayers;
+    
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-4 flex items-center justify-center">
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 w-full max-w-lg border border-white/20">
+          <div className="text-center mb-6">
+            <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              🎯 Waiting Room
+            </h1>
+            <p className="text-gray-600 text-lg">
+              Welcome, <span className="font-semibold text-indigo-600">{player?.name}</span>!
+            </p>
+          </div>
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">⚠️</span>
+                {error}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-6">
+            <div className="text-center">
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+                <p className="text-2xl font-bold text-gray-700 mb-3">
+                  Players Ready: <span className="text-indigo-600">{readyCount}/{totalPlayers}</span>
+                </p>
+                {round?.players && round.players.length > 0 && (
+                  <div className="space-y-2">
+                    {round.players.map((p) => (
+                      <div key={p.id} className="flex justify-between items-center py-3 px-4 bg-white rounded-lg shadow-sm border border-gray-100">
+                        <span className="font-semibold text-gray-700">{p.name}</span>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          p.isReady 
+                            ? 'bg-green-100 text-green-700 border border-green-200' 
+                            : 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                        }`}>
+                          {p.isReady ? '✅ Ready' : '⏳ Waiting'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {allReady ? (
+              <div className="text-center py-4 px-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="text-green-600 font-bold text-lg mb-1">
+                  🚀 All players ready!
+                </div>
+                <div className="text-green-500 text-sm animate-pulse">
+                  Starting game...
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={handleStartGame}
+                className={`w-full px-6 py-4 rounded-xl font-bold text-lg shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 ${
+                  player?.isReady
+                    ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-red-200 border-2 border-red-400'
+                    : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-green-200 border-2 border-green-400 animate-pulse'
+                }`}
+              >
+                {player?.isReady ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="text-xl">❌</span>
+                    <span>Cancel Ready</span>
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="text-xl">✅</span>
+                    <span>READY UP!</span>
+                  </span>
+                )}
+              </button>
+            )}
+
+            <div className="text-center">
+              <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium ${
+                isConnected 
+                  ? 'bg-green-100 text-green-700 border border-green-200' 
+                  : 'bg-red-100 text-red-700 border border-red-200'
+              }`}>
+                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <span>{isConnected ? 'Connected' : 'Connecting...'}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     );

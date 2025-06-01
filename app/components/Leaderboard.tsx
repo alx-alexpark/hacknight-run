@@ -15,11 +15,7 @@ export default function Leaderboard() {
   const fetchLeaderboard = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${CONFIG.API_BASE_URL}/leaderboard`, {
-        headers: {
-          "ngrok-skip-browser-warning": "69420",
-        },
-      });
+      const response = await fetch(`${CONFIG.API_BASE_URL}/leaderboard`);
       if (!response.ok) throw new Error("Failed to fetch leaderboard");
 
       const data = await response.json();
