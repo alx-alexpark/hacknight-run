@@ -3,25 +3,45 @@ import React, { useState, useEffect } from "react";
 import { LeaderboardEntry } from "../types";
 import { CONFIG } from "../constants";
 
-export default function Leaderboard() {
+export default function Leaderboard({
+  playerResult,
+}: {
+  playerResult?: LeaderboardEntry;
+}) {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Submit player result if provided and re-fetch when it changes
   useEffect(() => {
-    fetchLeaderboard();
-
-    // Auto-refresh every 10 seconds to show updated scores
-    const interval = setInterval(fetchLeaderboard, 10000);
-    return () => clearInterval(interval);
-  }, []);
+    const submitAndFetch = async () => {
+      if (playerResult) {
+        try {
+          await fetch(`${CONFIG.API_BASE_URL}/leaderboard`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(playerResult),
+          });
+          // Fetch immediately after submitting a score
+          fetchLeaderboard();
+        } catch (error) {
+          console.error("Error submitting score:", error);
+          // Ignore error, still fetch leaderboard
+          fetchLeaderboard();
+        }
+      } else {
+        // Initial load
+        fetchLeaderboard();
+      }
+    };
+    submitAndFetch();
+  }, [playerResult]); // Re-run when playerResult changes
 
   const fetchLeaderboard = async () => {
     try {
       setLoading(true);
       const response = await fetch(`${CONFIG.API_BASE_URL}/leaderboard`);
       if (!response.ok) throw new Error("Failed to fetch leaderboard");
-
       const data = await response.json();
       setLeaderboard(data);
     } catch (err: unknown) {
@@ -71,7 +91,6 @@ export default function Leaderboard() {
       <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">
         🏆 Leaderboard
       </h2>
-
       {leaderboard.length === 0 ? (
         <div className="text-center text-gray-500 py-8">
           No players yet. Be the first to compete!
@@ -116,14 +135,17 @@ export default function Leaderboard() {
               </div>
               <div className="text-right">
                 <div className="text-lg font-bold text-gray-800">
-                  {entry.speed}s
+                  {entry.speed > 0 ? (
+                    `${entry.speed}s`
+                  ) : (
+                    <span className="italic text-gray-400">In Progress</span>
+                  )}
                 </div>
               </div>
             </div>
           ))}
         </div>
       )}
-
       <button
         onClick={fetchLeaderboard}
         className="w-full mt-6 px-4 py-2 text-white rounded-lg transition-colors"

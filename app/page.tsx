@@ -310,37 +310,7 @@ export default function Home() {
     setGameState("waiting");
   };
 
-  const handleStartGame = async () => {
-    if (!player?.id) {
-      console.error("No player ID available");
-      return;
-    }
-
-    console.log(
-      "Ready button clicked! Player:",
-      player.name,
-      "Current ready status:",
-      player.isReady
-    );
-
-    try {
-      const response = await fetch("/api/player-ready", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          playerId: player.id,
-          isReady: !player.isReady,
-        }),
-      });
-
-      if (!response.ok) throw new Error("Failed to set ready status");
-      console.log("Ready status updated successfully");
-    } catch (err) {
-      console.error("Error setting ready status:", err);
-    }
-  };
+  // No longer needed since admin now starts the game
 
   const handleHuntComplete = () => {
     console.log("Hunt completed manually or automatically");
@@ -591,9 +561,7 @@ export default function Home() {
 
   // Waiting room screen
   if (gameState === "waiting") {
-    const readyCount = round?.players?.filter((p) => p.isReady).length || 0;
     const totalPlayers = round?.players?.length || 0;
-    const allReady = totalPlayers > 0 && readyCount === totalPlayers;
 
     return (
       <main className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-4 flex items-center justify-center">
@@ -652,10 +620,8 @@ export default function Home() {
             <div className="text-center">
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
                 <p className="text-3xl font-bold text-gray-700 mb-4">
-                  Players Ready:{" "}
-                  <span className="text-indigo-600">
-                    {readyCount}/{totalPlayers}
-                  </span>
+                  Players Waiting:{" "}
+                  <span className="text-indigo-600">{totalPlayers}</span>
                 </p>
                 {round?.players && round.players.length > 0 && (
                   <div className="space-y-3">
@@ -670,15 +636,6 @@ export default function Home() {
                         <span className="font-bold text-gray-700 text-lg">
                           {p.name}
                         </span>
-                        <span
-                          className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 ${
-                            p.isReady
-                              ? "bg-green-100 text-green-700 border-2 border-green-200 animate-pulse"
-                              : "bg-yellow-100 text-yellow-700 border-2 border-yellow-200"
-                          }`}
-                        >
-                          {p.isReady ? "✅ READY!" : "⏳ Waiting..."}
-                        </span>
                       </div>
                     ))}
                   </div>
@@ -686,54 +643,32 @@ export default function Home() {
               </div>
             </div>
 
-            {allReady ? (
+            {isRoundActive ? (
               <div className="text-center py-4 px-4 bg-green-50 border border-green-200 rounded-lg">
                 <div className="text-green-600 font-bold text-lg mb-1">
-                  🚀 All players ready!
+                  🚀 Game is in progress!
                 </div>
                 <div className="text-green-500 text-sm animate-pulse">
-                  Starting game...
+                  Get ready to hunt...
                 </div>
               </div>
             ) : (
-              <button
-                onClick={handleStartGame}
-                className="w-full px-8 py-6 rounded-2xl font-black text-2xl shadow-2xl transform transition-all duration-300 hover:scale-105 active:scale-95 border-4 cursor-pointer select-none text-white border-purple-400"
-                style={{
-                  background: player?.isReady
-                    ? `linear-gradient(to right, #800080, #6b006b, #5c005c)`
-                    : `linear-gradient(to right, #9500a3, #800080, #6b006b)`,
-                  textShadow: "2px 2px 4px rgba(0,0,0,0.3)",
-                  boxShadow: "0 20px 40px rgba(128, 0, 128, 0.4)",
-                  animation: player?.isReady
-                    ? "bounce 1s infinite"
-                    : "pulse 2s infinite",
-                }}
-                onMouseDown={() => console.log("Button pressed down!")}
-                onMouseUp={() => console.log("Button released!")}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = player?.isReady
-                    ? `linear-gradient(to right, #6b006b, #5c005c, #4d004d)`
-                    : `linear-gradient(to right, #800080, #6b006b, #5c005c)`;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = player?.isReady
-                    ? `linear-gradient(to right, #800080, #6b006b, #5c005c)`
-                    : `linear-gradient(to right, #9500a3, #800080, #6b006b)`;
-                }}
-              >
-                {player?.isReady ? (
-                  <span className="flex items-center justify-center gap-3">
-                    <span className="text-3xl">❌</span>
-                    <span>CANCEL READY</span>
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center gap-3">
-                    <span className="text-3xl">🚀</span>
-                    <span>READY UP!</span>
-                  </span>
-                )}
-              </button>
+              <div className="text-center py-6 px-6 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="text-blue-600 font-semibold">
+                  🎮 Waiting for admin to start the game
+                </div>
+                <div className="text-sm mt-2 text-gray-500">
+                  The game coordinator will start the game when everyone is ready
+                </div>
+                <div className="mt-4">
+                  <a
+                    href="/leaderboard"
+                    className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors inline-block"
+                  >
+                    View Leaderboard
+                  </a>
+                </div>
+              </div>
             )}
 
             <div className="text-center">
@@ -764,6 +699,16 @@ export default function Home() {
       <div className="bg-white shadow-lg p-4">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <h1 className="text-2xl font-bold text-gray-800">🔍 Scavange</h1>
+          
+          <div className="flex items-center space-x-4">
+            <a 
+              href="/leaderboard" 
+              className="text-purple-600 hover:text-purple-800 font-medium text-sm"
+            >
+              🏆 Leaderboard
+            </a>
+          </div>
+          
           <div className="text-right">
             {player && (
               <div className="text-sm text-gray-600">
@@ -812,7 +757,13 @@ export default function Home() {
       {/* Main content */}
       <div className="p-4">
         {currentView === "leaderboard" ? (
-          <Leaderboard />
+          <Leaderboard 
+            playerResult={player?.itemsFound === 3 ? {
+              name: player.name,
+              timestamp: new Date().toISOString(),
+              speed: Math.round(player.totalTime || 0)
+            } : undefined}
+          />
         ) : (
           <Hunting
             isActive={currentView === "hunting"}
