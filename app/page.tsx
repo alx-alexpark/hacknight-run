@@ -6,18 +6,16 @@ import { useGameEvents } from "./hooks/useGameEvents";
 
 export default function Home() {
   const [playerName, setPlayerName] = useState("");
-  const [gameState, setGameState] = useState<"entering" | "waiting" | "playing">("entering");
+  const [gameState, setGameState] = useState<
+    "entering" | "waiting" | "playing"
+  >("entering");
   const [currentView, setCurrentView] = useState<"leaderboard" | "hunting">(
     "leaderboard"
   );
 
-  const {
-    player,
-    round,
-    isConnected,
-    error,
-    isRoundActive,
-  } = useGameEvents(gameState === "waiting" || gameState === "playing" ? playerName : "");
+  const { player, round, isConnected, error, isRoundActive } = useGameEvents(
+    gameState === "waiting" || gameState === "playing" ? playerName : ""
+  );
 
   useEffect(() => {
     if (isRoundActive && gameState === "waiting") {
@@ -36,22 +34,34 @@ export default function Home() {
   };
 
   const handleStartGame = async () => {
-    if (!player?.id) return;
-    
+    if (!player?.id) {
+      console.error("No player ID available");
+      return;
+    }
+
+    console.log(
+      "Ready button clicked! Player:",
+      player.name,
+      "Current ready status:",
+      player.isReady
+    );
+
     try {
-      const response = await fetch('/api/player-ready', {
-        method: 'POST',
+      const response = await fetch("/api/player-ready", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           playerId: player.id,
           isReady: !player.isReady,
         }),
       });
-      if (!response.ok) throw new Error('Failed to set ready status');
+
+      if (!response.ok) throw new Error("Failed to set ready status");
+      console.log("Ready status updated successfully");
     } catch (err) {
-      console.error('Error setting ready status:', err);
+      console.error("Error setting ready status:", err);
     }
   };
 
@@ -95,10 +105,10 @@ export default function Home() {
 
   // Waiting room screen
   if (gameState === "waiting") {
-    const readyCount = round?.players?.filter(p => p.isReady).length || 0;
+    const readyCount = round?.players?.filter((p) => p.isReady).length || 0;
     const totalPlayers = round?.players?.length || 0;
     const allReady = totalPlayers > 0 && readyCount === totalPlayers;
-    
+
     return (
       <main className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-4 flex items-center justify-center">
         <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 w-full max-w-lg border border-white/20">
@@ -107,7 +117,11 @@ export default function Home() {
               🎯 Waiting Room
             </h1>
             <p className="text-gray-600 text-lg">
-              Welcome, <span className="font-semibold text-indigo-600">{player?.name}</span>!
+              Welcome,{" "}
+              <span className="font-semibold text-indigo-600">
+                {player?.name}
+              </span>
+              !
             </p>
           </div>
 
@@ -122,21 +136,34 @@ export default function Home() {
 
           <div className="space-y-6">
             <div className="text-center">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
-                <p className="text-2xl font-bold text-gray-700 mb-3">
-                  Players Ready: <span className="text-indigo-600">{readyCount}/{totalPlayers}</span>
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                <p className="text-3xl font-bold text-gray-700 mb-4">
+                  Players Ready:{" "}
+                  <span className="text-indigo-600">
+                    {readyCount}/{totalPlayers}
+                  </span>
                 </p>
                 {round?.players && round.players.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold text-gray-600 mb-3">
+                      Current Players:
+                    </h3>
                     {round.players.map((p) => (
-                      <div key={p.id} className="flex justify-between items-center py-3 px-4 bg-white rounded-lg shadow-sm border border-gray-100">
-                        <span className="font-semibold text-gray-700">{p.name}</span>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          p.isReady 
-                            ? 'bg-green-100 text-green-700 border border-green-200' 
-                            : 'bg-yellow-100 text-yellow-700 border border-yellow-200'
-                        }`}>
-                          {p.isReady ? '✅ Ready' : '⏳ Waiting'}
+                      <div
+                        key={p.id}
+                        className="flex justify-between items-center py-4 px-5 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200"
+                      >
+                        <span className="font-bold text-gray-700 text-lg">
+                          {p.name}
+                        </span>
+                        <span
+                          className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 ${
+                            p.isReady
+                              ? "bg-green-100 text-green-700 border-2 border-green-200 animate-pulse"
+                              : "bg-yellow-100 text-yellow-700 border-2 border-yellow-200"
+                          }`}
+                        >
+                          {p.isReady ? "✅ READY!" : "⏳ Waiting..."}
                         </span>
                       </div>
                     ))}
@@ -157,20 +184,28 @@ export default function Home() {
             ) : (
               <button
                 onClick={handleStartGame}
-                className={`w-full px-6 py-4 rounded-xl font-bold text-lg shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 ${
+                className={`w-full px-8 py-6 rounded-2xl font-black text-2xl shadow-2xl transform transition-all duration-300 hover:scale-105 active:scale-95 border-4 cursor-pointer select-none ${
                   player?.isReady
-                    ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-red-200 border-2 border-red-400'
-                    : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-green-200 border-2 border-green-400 animate-pulse'
+                    ? "bg-gradient-to-r from-red-500 via-red-600 to-red-700 hover:from-red-600 hover:via-red-700 hover:to-red-800 text-white shadow-red-300 border-red-400 animate-bounce"
+                    : "bg-gradient-to-r from-green-400 via-green-500 to-green-600 hover:from-green-500 hover:via-green-600 hover:to-green-700 text-white shadow-green-300 border-green-400 animate-pulse"
                 }`}
+                style={{
+                  textShadow: "2px 2px 4px rgba(0,0,0,0.3)",
+                  boxShadow: player?.isReady
+                    ? "0 20px 40px rgba(239, 68, 68, 0.4)"
+                    : "0 20px 40px rgba(34, 197, 94, 0.4)",
+                }}
+                onMouseDown={() => console.log("Button pressed down!")}
+                onMouseUp={() => console.log("Button released!")}
               >
                 {player?.isReady ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="text-xl">❌</span>
-                    <span>Cancel Ready</span>
+                  <span className="flex items-center justify-center gap-3">
+                    <span className="text-3xl">❌</span>
+                    <span>CANCEL READY</span>
                   </span>
                 ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="text-xl">✅</span>
+                  <span className="flex items-center justify-center gap-3">
+                    <span className="text-3xl">🚀</span>
                     <span>READY UP!</span>
                   </span>
                 )}
@@ -178,13 +213,19 @@ export default function Home() {
             )}
 
             <div className="text-center">
-              <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium ${
-                isConnected 
-                  ? 'bg-green-100 text-green-700 border border-green-200' 
-                  : 'bg-red-100 text-red-700 border border-red-200'
-              }`}>
-                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                <span>{isConnected ? 'Connected' : 'Connecting...'}</span>
+              <div
+                className={`inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium ${
+                  isConnected
+                    ? "bg-green-100 text-green-700 border border-green-200"
+                    : "bg-red-100 text-red-700 border border-red-200"
+                }`}
+              >
+                <div
+                  className={`w-2 h-2 rounded-full ${
+                    isConnected ? "bg-green-500" : "bg-red-500"
+                  }`}
+                ></div>
+                <span>{isConnected ? "Connected" : "Connecting..."}</span>
               </div>
             </div>
           </div>

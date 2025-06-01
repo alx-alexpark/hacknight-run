@@ -4,69 +4,69 @@ import { Player } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const playerName = searchParams.get('player_name');
-  
-  if (!playerName) {
-    return new Response('Missing player_name parameter', { status: 400 });
-  }
+    const { searchParams } = new URL(request.url);
+    const playerName = searchParams.get('player_name');
 
-  // Create a new player
-  const player: Player = {
-    id: uuidv4(),
-    name: playerName,
-  };
+    if (!playerName) {
+        return new Response('Missing player_name parameter', { status: 400 });
+    }
 
-  // Add player to current round
-  addPlayerToRound(player);
+    // Create a new player
+    const player: Player = {
+        id: uuidv4(),
+        name: playerName,
+    };
 
-  const stream = new ReadableStream({
-    start(controller) {
-      // Add this controller to our clients with the player ID
-      addSSEClient(controller, player.id);
+    // Add player to current round
+    addPlayerToRound(player);
 
-      // Send initial player data
-      controller.enqueue(`data: ${JSON.stringify({
-        t: "player",
-        player: player
-      })}\n\n`);
+    const stream = new ReadableStream({
+        start(controller) {
+            // Add this controller to our clients with the player ID
+            addSSEClient(controller, player.id);
 
-      // Send initial round data
-      controller.enqueue(`data: ${JSON.stringify({
-        t: "round", 
-        round: getCurrentRound()
-      })}\n\n`);
+            // Send initial player data
+            controller.enqueue(`data: ${JSON.stringify({
+                t: "player",
+                player: player
+            })}\n\n`);
 
-      // Set up periodic round updates
-      const interval = setInterval(() => {
-        try {
-          controller.enqueue(`data: ${JSON.stringify({
-            t: "round",
-            round: getCurrentRound()
-          })}\n\n`);
-        } catch (error) {
-          console.error('Error sending round update:', error);
-          clearInterval(interval);
-          removeSSEClient(controller);
-        }
-      }, 1000);
+            // Send initial round data
+            controller.enqueue(`data: ${JSON.stringify({
+                t: "round",
+                round: getCurrentRound()
+            })}\n\n`);
 
-      // Clean up when client disconnects
-      request.signal.addEventListener('abort', () => {
-        clearInterval(interval);
-        removeSSEClient(controller);
-        controller.close();
-      });
-    },
-  });
+            // Set up more frequent round updates for real-time feel
+            const interval = setInterval(() => {
+                try {
+                    controller.enqueue(`data: ${JSON.stringify({
+                        t: "round",
+                        round: getCurrentRound()
+                    })}\n\n`);
+                } catch (error) {
+                    console.error('Error sending round update:', error);
+                    clearInterval(interval);
+                    removeSSEClient(controller);
+                }
+            }, 500); // Update every 500ms for more real-time feel
 
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Cache-Control',
-    },
-  });
+            // Clean up when client disconnects
+            request.signal.addEventListener('abort', () => {
+                clearInterval(interval);
+                removeSSEClient(controller);
+                controller.close();
+            });
+        },
+    });
+
+    return new Response(stream, {
+        headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Cache-Control',
+        },
+    });
 }
