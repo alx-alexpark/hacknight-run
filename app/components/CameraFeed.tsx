@@ -203,7 +203,7 @@ export default function CameraFeed({
       </div>
 
       {/* Manual next button (fallback) */}
-      <button
+      {/* {<button
         onClick={onItemFound}
         className="absolute bottom-4 right-4 px-6 py-3 text-white rounded-lg font-bold transition-colors"
         style={{ backgroundColor: "#800080" }}
@@ -215,7 +215,7 @@ export default function CameraFeed({
         }
       >
         Next →
-      </button>
+      </button>} */}
     </div>
   );
 }
