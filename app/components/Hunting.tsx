@@ -184,21 +184,6 @@ export default function Hunting({
             </div>
           )}
 
-          {/* Exit button */}
-          <button
-            onClick={onComplete}
-            className="absolute bottom-4 left-4 px-4 py-2 text-white rounded-lg transition-colors z-20 font-semibold"
-            style={{ backgroundColor: "#800080" }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.backgroundColor = "#6b006b")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.backgroundColor = "#800080")
-            }
-          >
-            Exit Hunt
-          </button>
-
           {/* Completion status for all items */}
           {itemsCompleted === totalItems && (
             <div className="absolute bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg font-bold animate-pulse">

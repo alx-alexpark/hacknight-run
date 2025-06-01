@@ -15,21 +15,6 @@ const leaderboardData: LeaderboardEntry[] = [
         name: "Julian",
         timestamp: "2025-02-05T00:00:00.000Z",
         speed: 44
-    },
-    {
-        name: "Julian 2",
-        timestamp: "2025-02-06T00:00:00.000Z",
-        speed: 60
-    },
-    {
-        name: "Julian 3",
-        timestamp: "2025-02-07T00:00:00.000Z",
-        speed: 99
-    },
-    {
-        name: "Julian 4",
-        timestamp: "2025-04-15T00:00:00.000Z",
-        speed: 200
     }
 ];
 
@@ -183,8 +168,6 @@ export function areAllPlayersReady(): boolean {
     return currentRound.players.length > 0 &&
         currentRound.players.every(p => p.isReady);
 }
-
-// ...existing code...
 
 export function addSSEClient(controller: ReadableStreamDefaultController, playerId: string): void {
     connectedClients.set(controller, playerId);
