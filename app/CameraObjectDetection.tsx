@@ -58,7 +58,8 @@ export default function CameraObjectDetection() {
     }
 
     async function detectFrame() {
-      if (!videoRef.current || !canvasRef.current || !detector || isPaused) return;
+      if (!videoRef.current || !canvasRef.current || !detector || isPaused)
+        return;
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
