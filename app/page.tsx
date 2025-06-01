@@ -7,7 +7,7 @@ import Countdown from "./components/Countdown";
 export default function Home() {
   const [playerName, setPlayerName] = useState("");
   const [gameState, setGameState] = useState<
-    "entering" | "camera_permission" | "ready" | "playing" | "finished"
+    "entering" | "camera_permission" | "ready" | "playing" | "finished" | "waiting"
   >("entering");
   const [timer, setTimer] = useState(0); // ms
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
