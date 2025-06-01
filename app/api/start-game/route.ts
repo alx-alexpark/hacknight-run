@@ -9,7 +9,7 @@ export async function POST() {
         if (currentRound.players.length > 0 && !currentRound.start) {
             const updatedRound = {
                 ...currentRound,
-                start: new Date(),
+                start: new Date().toISOString(),
                 finish: null,
             };
 

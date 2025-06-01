@@ -40,25 +40,7 @@ export function useGameEvents(playerName: string) {
                     if (data.t === "player" && data.player) {
                         setPlayer(data.player);
                     } else if (data.t === "round" && data.round) {
-                        const roundData = data.round;
-                        setRound(roundData);
-                        
-                        // Update player's ready status from round data to keep it in sync
-                        setPlayer(currentPlayer => {
-                            if (!currentPlayer) return currentPlayer;
-                            
-                            // Find this player in the round data
-                            const updatedPlayerInRound = roundData.players.find(p => p.id === currentPlayer.id);
-                            if (updatedPlayerInRound) {
-                                // Update the player state with the latest ready status from the round
-                                return {
-                                    ...currentPlayer,
-                                    isReady: updatedPlayerInRound.isReady,
-                                    itemsFound: updatedPlayerInRound.itemsFound || currentPlayer.itemsFound,
-                                };
-                            }
-                            return currentPlayer;
-                        });
+                        setRound(data.round);
                     } else if (data.t === "announcement" && data.announcement) {
                         // Add announcement to the list and auto-remove after 5 seconds
                         const announcementText = data.announcement.message;

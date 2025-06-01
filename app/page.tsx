@@ -25,7 +25,6 @@ export default function Home() {
     resolution?: string;
     deviceLabel?: string;
   } | null>(null);
-  const [isUpdatingReady, setIsUpdatingReady] = useState(false);
 
   const { player, round, isConnected, error, isRoundActive, announcements } =
     useGameEvents(
@@ -312,8 +311,8 @@ export default function Home() {
   };
 
   const handleStartGame = async () => {
-    if (!player?.id || isUpdatingReady) {
-      console.error("No player ID available or already updating");
+    if (!player?.id) {
+      console.error("No player ID available");
       return;
     }
 
@@ -324,7 +323,6 @@ export default function Home() {
       player.isReady
     );
 
-    setIsUpdatingReady(true);
     try {
       const response = await fetch("/api/player-ready", {
         method: "POST",
@@ -341,8 +339,6 @@ export default function Home() {
       console.log("Ready status updated successfully");
     } catch (err) {
       console.error("Error setting ready status:", err);
-    } finally {
-      setIsUpdatingReady(false);
     }
   };
 
@@ -702,45 +698,31 @@ export default function Home() {
             ) : (
               <button
                 onClick={handleStartGame}
-                disabled={isUpdatingReady}
-                className="w-full px-8 py-6 rounded-2xl font-black text-2xl shadow-2xl transform transition-all duration-300 hover:scale-105 active:scale-95 border-4 cursor-pointer select-none text-white border-purple-400 disabled:opacity-75 disabled:cursor-not-allowed"
+                className="w-full px-8 py-6 rounded-2xl font-black text-2xl shadow-2xl transform transition-all duration-300 hover:scale-105 active:scale-95 border-4 cursor-pointer select-none text-white border-purple-400"
                 style={{
-                  background: isUpdatingReady
-                    ? `linear-gradient(to right, #666666, #555555, #444444)`
-                    : player?.isReady
+                  background: player?.isReady
                     ? `linear-gradient(to right, #800080, #6b006b, #5c005c)`
                     : `linear-gradient(to right, #9500a3, #800080, #6b006b)`,
                   textShadow: "2px 2px 4px rgba(0,0,0,0.3)",
                   boxShadow: "0 20px 40px rgba(128, 0, 128, 0.4)",
-                  animation: isUpdatingReady
-                    ? "pulse 1s infinite"
-                    : player?.isReady
+                  animation: player?.isReady
                     ? "bounce 1s infinite"
                     : "pulse 2s infinite",
                 }}
                 onMouseDown={() => console.log("Button pressed down!")}
                 onMouseUp={() => console.log("Button released!")}
                 onMouseEnter={(e) => {
-                  if (!isUpdatingReady) {
-                    e.currentTarget.style.background = player?.isReady
-                      ? `linear-gradient(to right, #6b006b, #5c005c, #4d004d)`
-                      : `linear-gradient(to right, #800080, #6b006b, #5c005c)`;
-                  }
+                  e.currentTarget.style.background = player?.isReady
+                    ? `linear-gradient(to right, #6b006b, #5c005c, #4d004d)`
+                    : `linear-gradient(to right, #800080, #6b006b, #5c005c)`;
                 }}
                 onMouseLeave={(e) => {
-                  if (!isUpdatingReady) {
-                    e.currentTarget.style.background = player?.isReady
-                      ? `linear-gradient(to right, #800080, #6b006b, #5c005c)`
-                      : `linear-gradient(to right, #9500a3, #800080, #6b006b)`;
-                  }
+                  e.currentTarget.style.background = player?.isReady
+                    ? `linear-gradient(to right, #800080, #6b006b, #5c005c)`
+                    : `linear-gradient(to right, #9500a3, #800080, #6b006b)`;
                 }}
               >
-                {isUpdatingReady ? (
-                  <span className="flex items-center justify-center gap-3">
-                    <span className="text-3xl animate-spin">⏳</span>
-                    <span>UPDATING...</span>
-                  </span>
-                ) : player?.isReady ? (
+                {player?.isReady ? (
                   <span className="flex items-center justify-center gap-3">
                     <span className="text-3xl">❌</span>
                     <span>CANCEL READY</span>

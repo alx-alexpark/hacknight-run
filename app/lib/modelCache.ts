@@ -1,108 +1,82 @@
-// Global model cache to prevent re-downloading the 7MB AI model on every render
 import { ObjectDetector, FilesetResolver } from "@mediapipe/tasks-vision";
 
-interface ModelCache {
-  detector: ObjectDetector | null;
-  vision: any | null;
-  isLoading: boolean;
-  error: string | null;
-}
+// Global cache for the object detector
+let cachedDetector: ObjectDetector | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let cachedFileset: any | null = null;
+let isLoading = false;
+let loadingPromise: Promise<ObjectDetector> | null = null;
 
-// Global cache instance
-const modelCache: ModelCache = {
-  detector: null,
-  vision: null,
-  isLoading: false,
-  error: null,
-};
-
-// Promise to track ongoing initialization
-let initializationPromise: Promise<ObjectDetector> | null = null;
-
+/**
+ * Get a cached ObjectDetector instance, loading it only once
+ * @returns Promise<ObjectDetector>
+ */
 export async function getObjectDetector(): Promise<ObjectDetector> {
-  // If we already have a detector, return it immediately
-  if (modelCache.detector) {
-    console.log("✅ Using cached AI model - no download needed");
-    return modelCache.detector;
-  }
-
-  // If there's an ongoing initialization, wait for it
-  if (initializationPromise) {
-    console.log("⏳ Waiting for ongoing model initialization...");
-    return initializationPromise;
-  }
-
-  // If there was a previous error, throw it
-  if (modelCache.error) {
-    throw new Error(modelCache.error);
-  }
-
-  // Start initialization
-  console.log("🔄 Initializing AI model (downloading 7MB model - this will only happen once)...");
-  modelCache.isLoading = true;
-
-  initializationPromise = (async () => {
-    try {
-      // Load MediaPipe vision tasks (this downloads the WASM files)
-      if (!modelCache.vision) {
-        console.log("📥 Downloading MediaPipe vision tasks...");
-        modelCache.vision = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
-        );
-      }
-
-      // Create object detector (this downloads the 7MB model file)
-      if (!modelCache.detector) {
-        console.log("🤖 Creating object detector with cached model...");
-        modelCache.detector = await ObjectDetector.createFromOptions(modelCache.vision, {
-          baseOptions: {
-            modelAssetPath: "/efficientdet_lite0.tflite", // Local path in public/
-            delegate: "GPU",
-          },
-          scoreThreshold: 0.3,
-        });
-      }
-
-      modelCache.isLoading = false;
-      console.log("✅ AI model loaded and cached successfully!");
-      
-      return modelCache.detector;
-    } catch (error) {
-      modelCache.isLoading = false;
-      modelCache.error = error instanceof Error ? error.message : "Failed to load AI model";
-      initializationPromise = null; // Reset so we can retry
-      
-      console.error("❌ Failed to load AI model:", modelCache.error);
-      throw new Error(modelCache.error);
+    // If we already have a cached detector, return it
+    if (cachedDetector) {
+        console.log("🎯 Using cached ObjectDetector");
+        return cachedDetector;
     }
-  })();
 
-  return initializationPromise;
+    // If we're already loading, return the same promise
+    if (isLoading && loadingPromise) {
+        console.log("⏳ ObjectDetector already loading, waiting...");
+        return loadingPromise;
+    }
+
+    // Start loading the detector
+    isLoading = true;
+    console.log("🤖 Loading ObjectDetector for the first time...");
+
+    loadingPromise = (async () => {
+        try {
+            // Load MediaPipe vision tasks if not already loaded
+            if (!cachedFileset) {
+                console.log("📦 Loading MediaPipe vision tasks...");
+                cachedFileset = await FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
+                );
+            }
+
+            // Create the object detector
+            console.log("🔧 Creating ObjectDetector instance...");
+            cachedDetector = await ObjectDetector.createFromOptions(cachedFileset, {
+                baseOptions: {
+                    modelAssetPath: "/efficientdet_lite0.tflite",
+                    delegate: "GPU",
+                },
+                scoreThreshold: 0.3,
+            });
+
+            console.log("✅ ObjectDetector loaded and cached successfully!");
+            return cachedDetector;
+        } catch (error) {
+            console.error("❌ Failed to load ObjectDetector:", error);
+            isLoading = false;
+            loadingPromise = null;
+            throw error;
+        } finally {
+            isLoading = false;
+        }
+    })();
+
+    return loadingPromise;
 }
 
-export function isModelLoading(): boolean {
-  return modelCache.isLoading;
+/**
+ * Clear the cached detector (useful for cleanup or forced reload)
+ */
+export function clearDetectorCache(): void {
+    console.log("🗑️ Clearing ObjectDetector cache");
+    cachedDetector = null;
+    cachedFileset = null;
+    isLoading = false;
+    loadingPromise = null;
 }
 
-export function getModelError(): string | null {
-  return modelCache.error;
-}
-
-export function clearModelCache(): void {
-  console.log("🗑️ Clearing AI model cache");
-  modelCache.detector = null;
-  modelCache.vision = null;
-  modelCache.isLoading = false;
-  modelCache.error = null;
-  initializationPromise = null;
-}
-
-// Optional: Preload the model when the module loads
-export function preloadModel(): void {
-  if (!modelCache.detector && !modelCache.isLoading) {
-    console.log("🚀 Preloading AI model...");
-    getObjectDetector().catch(() => {
-      // Silently handle preload errors - they'll be handled when actually needed
-    });
-  }
+/**
+ * Check if detector is already cached
+ */
+export function isDetectorCached(): boolean {
+    return cachedDetector !== null;
 }

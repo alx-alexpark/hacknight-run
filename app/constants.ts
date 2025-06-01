@@ -15,18 +15,12 @@ export const CONFIG = {
     // UI Configuration
     MOBILE_BREAKPOINT: 768,
 
-    
+
 } as const;
 
 // Hunt Items
 
 export const HUNT_ITEMS: FindItem[] = [
-    {
-        name: "light switch",
-        prompt: "One little switch and on comes the light / turn me off when the time is night!",
-        confidence: 0.4,
-        enabled: true
-    },
     {
         name: "clock",
         prompt: "My hands move across the hour / check me when you need the time's power!",
@@ -34,56 +28,32 @@ export const HUNT_ITEMS: FindItem[] = [
         enabled: true
     },
     {
-        name: "door",
-        prompt: "I open and close, I let you pass through / knock or turn the handle, I'm waiting for you!",
+        name: "cup",
+        prompt: "Hold me close when you need a drink / ceramic or glass, what do you think?",
+        confidence: 0.4,
+        enabled: true
+    },
+    {
+        name: "person",
+        prompt: "Look around, can you see me here? / a human being, standing near!",
         confidence: 0.5,
         enabled: true
     },
     {
-        name: "chair",
-        prompt: "Four legs I have, but I cannot walk / sit upon me when you need to talk!",
+        name: "vase",
+        prompt: "Flowers I hold in elegant grace / decorative beauty in this place!",
         confidence: 0.4,
         enabled: true
     },
     {
-        name: "light",
-        prompt: "I banish darkness with my bright glow / flip my switch and watch me show!",
-        confidence: 0.3,
-        enabled: true
-    },
-    {
-        name: "paper",
-        prompt: "Write on me, draw on me, fold me in two / I'm thin and white and useful to you!",
+        name: "dining table",
+        prompt: "Gather around me for meals each day / where family and friends come to stay!",
         confidence: 0.4,
         enabled: true
     },
     {
-        name: "book",
-        prompt: "Pages and words, stories galore / open me up and knowledge explore!",
-        confidence: 0.4,
-        enabled: true
-    },
-    {
-        name: "sink",
-        prompt: "Water flows from my silver spout / wash your hands, don't go without!",
-        confidence: 0.5,
-        enabled: true
-    },
-    {
-        name: "pencil",
-        prompt: "Lead in my core, wood all around / for writing and drawing, I can be found!",
-        confidence: 0.3,
-        enabled: true
-    },
-    {
-        name: "outlet",
-        prompt: "Two or three holes in the wall I show / plug me in and electricity will flow!",
-        confidence: 0.4,
-        enabled: true
-    },
-    {
-        name: "backpack",
-        prompt: "Carry me on your shoulders so strong / books and supplies, I'll take along!",
+        name: "cell phone",
+        prompt: "In your pocket or hand I stay / calls and texts throughout the day!",
         confidence: 0.4,
         enabled: true
     }

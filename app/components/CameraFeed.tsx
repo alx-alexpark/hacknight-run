@@ -18,22 +18,16 @@ export default function CameraFeed({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Detection timing refs for 2-second detection in 3-second window
-  const detectionStartTimeRef = useRef<number | null>(null);
+  // Simple consecutive detection logic - just need 2 detections in a row
+  const consecutiveDetectionsRef = useRef<number>(0);
   const itemFoundTriggeredRef = useRef(false);
-  const [detectionProgress, setDetectionProgress] = useState(0);
-  
-  // Performance optimization: cache lowercased target name
-  const targetNameLowerRef = useRef<string>("");
-  const lastProgressUpdateRef = useRef<number>(0);
+  const [detectionCount, setDetectionCount] = useState(0);
 
   // Reset detection state when item changes
   useEffect(() => {
-    detectionStartTimeRef.current = null;
+    consecutiveDetectionsRef.current = 0;
     itemFoundTriggeredRef.current = false;
-    setDetectionProgress(0);
-    targetNameLowerRef.current = currentItem.name.toLowerCase();
-    lastProgressUpdateRef.current = 0;
+    setDetectionCount(0);
   }, [currentItem]);
 
   useEffect(() => {
@@ -85,8 +79,6 @@ export default function CameraFeed({
 
       const detections = await detector.detect(video);
       let targetDetected = false;
-      const targetNameLower = targetNameLowerRef.current;
-      const requiredConfidence = currentItem.confidence || 0.5;
 
       detections.detections.forEach((det: unknown) => {
         const detection = det as {
@@ -102,11 +94,10 @@ export default function CameraFeed({
         const label = detection.categories[0]?.categoryName || "object";
         const score = detection.categories[0]?.score || 0;
 
-        // Optimize string matching - avoid repeated toLowerCase calls
-        const labelLower = label.toLowerCase();
+        // Highlight target item in green, others in blue
         const isTargetItem =
-          labelLower.includes(targetNameLower) ||
-          targetNameLower.includes(labelLower);
+          label.toLowerCase().includes(currentItem.name.toLowerCase()) ||
+          currentItem.name.toLowerCase().includes(label.toLowerCase());
 
         ctx.strokeStyle = isTargetItem ? "#00FF00" : "#0080FF";
         ctx.lineWidth = isTargetItem ? 4 : 2;
@@ -121,45 +112,27 @@ export default function CameraFeed({
         );
 
         // Check if target item is found with good confidence
+        const requiredConfidence = currentItem.confidence || 0.5;
         if (isTargetItem && score > requiredConfidence) {
           targetDetected = true;
         }
       });
 
-      // Handle continuous detection timing - optimize to reduce Date.now() calls
+      // Simple consecutive detection logic - 2 detections in a row = found
       if (targetDetected && !itemFoundTriggeredRef.current) {
-        const currentTime = Date.now();
+        consecutiveDetectionsRef.current += 1;
+        setDetectionCount(consecutiveDetectionsRef.current);
+        console.log(`🎯 Target detected! Count: ${consecutiveDetectionsRef.current}/2`);
         
-        if (detectionStartTimeRef.current === null) {
-          // Start detection timer
-          detectionStartTimeRef.current = currentTime;
-          setDetectionProgress(0);
-          lastProgressUpdateRef.current = currentTime;
-        } else {
-          // Check if detected for 2 seconds continuously
-          const totalDetectionTime = currentTime - detectionStartTimeRef.current;
-          
-          if (totalDetectionTime >= 2000) {
-            itemFoundTriggeredRef.current = true;
-            onItemFound();
-          } else {
-            // Throttle progress updates to every 100ms to reduce state updates
-            if (currentTime - lastProgressUpdateRef.current >= 100) {
-              const progress = Math.min(totalDetectionTime / 2000, 1) * 100;
-              setDetectionProgress(progress);
-              lastProgressUpdateRef.current = currentTime;
-            }
-          }
+        if (consecutiveDetectionsRef.current >= 2) {
+          console.log("✅ Found! Two consecutive detections.");
+          itemFoundTriggeredRef.current = true;
+          onItemFound();
         }
-      } else if (!targetDetected && detectionStartTimeRef.current !== null) {
-        // Reset detection if target lost (with 3-second tolerance)
-        const currentTime = Date.now();
-        const timeSinceStart = currentTime - detectionStartTimeRef.current;
-        
-        if (timeSinceStart > 3000) {
-          detectionStartTimeRef.current = null;
-          setDetectionProgress(0);
-        }
+      } else if (!targetDetected) {
+        // Reset counter if target not detected
+        consecutiveDetectionsRef.current = 0;
+        setDetectionCount(0);
       }
 
       if (isMounted) {
@@ -184,19 +157,22 @@ export default function CameraFeed({
           <p className="text-sm italic">{currentItem.prompt}</p>
         )}
 
-        {/* Detection progress bar */}
-        {detectionProgress > 0 && (
+        {/* Simple detection indicator */}
+        {detectionCount > 0 && (
           <div className="mt-3">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm">Detecting...</span>
-              <span className="text-sm">{Math.round(detectionProgress)}%</span>
+              <span className="text-sm">{detectionCount}/2</span>
             </div>
             <div className="w-full bg-gray-600 rounded-full h-2">
               <div
                 className="bg-green-500 h-2 rounded-full transition-all duration-200"
-                style={{ width: `${detectionProgress}%` }}
+                style={{ width: `${(detectionCount / 2) * 100}%` }}
               ></div>
             </div>
+            <p className="text-xs text-gray-300 mt-1">
+              Need 2 consecutive detections
+            </p>
           </div>
         )}
       </div>
