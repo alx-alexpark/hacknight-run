@@ -1,18 +1,43 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import Leaderboard from "./components/Leaderboard";
 import Hunting from "./components/Hunting";
 import AdminPanel from "./components/AdminPanel";
-import { useGameEvents } from "./hooks/useGameEvents";
 
 export default function Home() {
   const [playerName, setPlayerName] = useState("");
   const [gameState, setGameState] = useState<
-    "entering" | "camera_permission" | "waiting" | "playing"
+    "entering" | "camera_permission" | "ready" | "playing" | "finished"
   >("entering");
-  const [currentView, setCurrentView] = useState<"leaderboard" | "hunting">(
-    "leaderboard"
-  );
+  const [timer, setTimer] = useState(0); // ms
+  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  const [showFinalTime, setShowFinalTime] = useState(false);
+  // Timer logic for solo run
+  useEffect(() => {
+    if (gameState === "playing") {
+      const interval = setInterval(() => {
+        setTimer((t) => t + 100);
+      }, 100);
+      setTimerInterval(interval);
+      return () => clearInterval(interval);
+    } else {
+      if (timerInterval) clearInterval(timerInterval);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState]);
+
+  // Handler to go from camera preview to ready screen
+  const handleContinueToReady = () => {
+    // Do NOT stop the camera stream here; keep it alive for the run
+    setShowingPreview(false);
+    setGameState("ready");
+  };
+
+  // Handler for when the hunt is complete
+  const handleHuntComplete = () => {
+    if (timerInterval) clearInterval(timerInterval);
+    setGameState("finished");
+    setShowFinalTime(true);
+  };
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
@@ -26,25 +51,9 @@ export default function Home() {
     deviceLabel?: string;
   } | null>(null);
 
-  const { player, round, isConnected, error, isRoundActive, announcements } =
-    useGameEvents(
-      gameState === "waiting" || gameState === "playing" ? playerName : ""
-    );
+  // Multiplayer/game event logic removed for solo mode
 
-  useEffect(() => {
-    if (isRoundActive && gameState === "waiting") {
-      setGameState("playing");
-      setCurrentView("hunting");
-    } else if (!isRoundActive && gameState === "playing") {
-      setCurrentView("leaderboard");
-    }
-
-    // Auto-complete hunt if player finished all items
-    if (gameState === "playing" && player?.itemsFound === 3) {
-      console.log("Player completed all items, returning to leaderboard");
-      setCurrentView("leaderboard");
-    }
-  }, [isRoundActive, gameState, player?.itemsFound]);
+  // Multiplayer/game event logic removed for solo mode
 
   // Check camera permissions when entering camera_permission state
   useEffect(() => {
@@ -163,9 +172,7 @@ export default function Home() {
     };
   }, [cameraStream]);
 
-  // Check if countdown is active
-  const isCountdownActive =
-    round?.countdown !== undefined && round.countdown > 0;
+  // Multiplayer/game event logic removed for solo mode
 
   // Admin panel key sequence: "admin"
   useEffect(() => {
@@ -311,17 +318,7 @@ export default function Home() {
   };
 
   // No longer needed since admin now starts the game
-
-  const handleHuntComplete = () => {
-    console.log("Hunt completed manually or automatically");
-    setCurrentView("leaderboard");
-
-    // Show completion message if player completed all items
-    if (player?.itemsFound === 3) {
-      // The leaderboard will show the updated scores
-      console.log("Player completed all 3 items!");
-    }
-  };
+  // (Removed old multiplayer handleHuntComplete)
 
   // Name entry screen
   if (gameState === "entering") {
@@ -483,7 +480,7 @@ export default function Home() {
               </div>
 
               <button
-                onClick={handleContinueToWaiting}
+                onClick={handleContinueToReady}
                 className="w-full px-4 py-3 text-white rounded-lg font-semibold transition-colors"
                 style={{ backgroundColor: "#800080" }}
                 onMouseEnter={(e) =>
@@ -493,7 +490,7 @@ export default function Home() {
                   (e.currentTarget.style.backgroundColor = "#800080")
                 }
               >
-                Continue to Game 🚀
+                Continue
               </button>
             </div>
           ) : requestingCamera ? (
@@ -503,280 +500,101 @@ export default function Home() {
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xl animate-spin">🔄</span>
                   <span className="font-semibold text-blue-700">
-                    Checking Camera Access...
+                    Checking camera permissions...
                   </span>
                 </div>
                 <p className="text-sm text-blue-600">
-                  We&apos;re checking if your camera is already available. This
-                  should only take a moment.
+                  Please allow camera access if prompted.
                 </p>
               </div>
             </div>
           ) : (
-            // Initial request for camera access
-            <div className="space-y-4">
-              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xl">🔒</span>
-                  <span className="font-semibold text-green-700">
-                    Privacy First
-                  </span>
-                </div>
-                <p className="text-sm text-green-600">
-                  All object detection happens locally on your device. No video
-                  or images leave your browser.
-                </p>
-              </div>
-              <button
-                onClick={handleCameraPermission}
-                disabled={requestingCamera}
-                className="w-full px-4 py-3 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  backgroundColor: requestingCamera ? undefined : "#800080",
-                }}
-                onMouseEnter={(e) => {
-                  if (!e.currentTarget.disabled)
-                    e.currentTarget.style.backgroundColor = "#6b006b";
-                }}
-                onMouseLeave={(e) => {
-                  if (!e.currentTarget.disabled)
-                    e.currentTarget.style.backgroundColor = "#800080";
-                }}
-              >
-                {requestingCamera ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="animate-spin">⏳</span>
-                    Requesting Camera Access...
-                  </span>
-                ) : (
-                  "Enable Camera Access"
-                )}
-              </button>
-            </div>
+            <button
+              onClick={handleCameraPermission}
+              className="w-full px-4 py-3 text-white rounded-lg font-semibold transition-colors"
+              style={{ backgroundColor: "#800080" }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#6b006b")}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#800080")}
+              disabled={requestingCamera}
+            >
+              {requestingCamera ? "Requesting Camera..." : "Allow Camera Access"}
+            </button>
           )}
         </div>
       </main>
     );
   }
 
-  // Waiting room screen
-  if (gameState === "waiting") {
-    const totalPlayers = round?.players?.length || 0;
-
+  // Ready screen (after camera, before run)
+  if (gameState === "ready") {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-4 flex items-center justify-center">
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 w-full max-w-lg border border-white/20">
-          {/* Countdown Display */}
-          {isCountdownActive && (
-            <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-              <div className="text-center">
-                <div className="text-8xl font-bold text-white mb-4 animate-pulse">
-                  {round?.countdown || 0}
-                </div>
-                <div className="text-2xl text-white font-semibold">
-                  {round?.countdown === 0 ? "GO!" : "Get Ready!"}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Announcement Banners */}
-          {announcements.length > 0 && (
-            <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40 space-y-2">
-              {announcements.map((announcement, index) => (
-                <div
-                  key={`${announcement}-${index}`}
-                  className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-bounce"
-                >
-                  {announcement}
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="text-center mb-6">
-            <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              🎯 Waiting Room
-            </h1>
-            <p className="text-gray-600 text-lg">
-              Welcome,{" "}
-              <span className="font-semibold text-indigo-600">
-                {player?.name}
-              </span>
-              !
-            </p>
-          </div>
-
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">⚠️</span>
-                {error}
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-6">
-            <div className="text-center">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
-                <p className="text-3xl font-bold text-gray-700 mb-4">
-                  Players Waiting:{" "}
-                  <span className="text-indigo-600">{totalPlayers}</span>
-                </p>
-                {round?.players && round.players.length > 0 && (
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-semibold text-gray-600 mb-3">
-                      Current Players:
-                    </h3>
-                    {round.players.map((p) => (
-                      <div
-                        key={p.id}
-                        className="flex justify-between items-center py-4 px-5 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200"
-                      >
-                        <span className="font-bold text-gray-700 text-lg">
-                          {p.name}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {isRoundActive ? (
-              <div className="text-center py-4 px-4 bg-green-50 border border-green-200 rounded-lg">
-                <div className="text-green-600 font-bold text-lg mb-1">
-                  🚀 Game is in progress!
-                </div>
-                <div className="text-green-500 text-sm animate-pulse">
-                  Get ready to hunt...
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-6 px-6 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="text-blue-600 font-semibold">
-                  🎮 Waiting for admin to start the game
-                </div>
-                <div className="text-sm mt-2 text-gray-500">
-                  The game coordinator will start the game when everyone is ready
-                </div>
-                <div className="mt-4">
-                  <a
-                    href="/leaderboard"
-                    className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors inline-block"
-                  >
-                    View Leaderboard
-                  </a>
-                </div>
-              </div>
-            )}
-
-            <div className="text-center">
-              <div
-                className={`inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium ${
-                  isConnected
-                    ? "bg-green-100 text-green-700 border border-green-200"
-                    : "bg-red-100 text-red-700 border border-red-200"
-                }`}
-              >
-                <div
-                  className={`w-2 h-2 rounded-full ${
-                    isConnected ? "bg-green-500" : "bg-red-500"
-                  }`}
-                ></div>
-                <span>{isConnected ? "Connected" : "Connecting..."}</span>
-              </div>
-            </div>
-          </div>
+      <main className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600">
+        <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md text-center">
+          <h1 className="text-3xl font-bold mb-4 text-gray-800">Ready to Run?</h1>
+          <p className="mb-6 text-gray-600">Hi {playerName}! When you click below, your scavenger run will begin and the timer will start. Find all items as fast as you can!</p>
+          <button
+            className="w-full px-4 py-3 text-white rounded-lg font-semibold transition-colors"
+            style={{ backgroundColor: "#800080" }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#6b006b")}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = "#800080")}
+            onClick={() => {
+              setTimer(0);
+              setShowFinalTime(false);
+              setGameState("playing");
+            }}
+          >
+            Start Run 🚦
+          </button>
         </div>
       </main>
     );
   }
 
-  return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600">
-      {/* Header */}
-      <div className="bg-white shadow-lg p-4">
-        <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-800">🔍 Scavange</h1>
-          
-          <div className="flex items-center space-x-4">
-            <a 
-              href="/leaderboard" 
-              className="text-purple-600 hover:text-purple-800 font-medium text-sm"
-            >
-              🏆 Leaderboard
-            </a>
+  // Finished screen
+  if (gameState === "finished" && showFinalTime) {
+    // Format timer as mm:ss.SS
+    const ms = timer % 1000;
+    const totalSeconds = Math.floor(timer / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    const centiseconds = Math.floor((timer % 1000) / 10);
+    const pad = (n: number, l = 2) => n.toString().padStart(l, l === 2 ? "0" : "00");
+    return (
+      <main className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-green-400 to-blue-600">
+        <div className="bg-white rounded-2xl shadow-2xl p-12 w-full max-w-lg text-center">
+          <h1 className="text-4xl font-bold mb-8 text-gray-800">🏁 Run Complete!</h1>
+          <div className="text-7xl font-mono font-extrabold text-purple-700 mb-6 tracking-widest">
+            {pad(minutes)}:{pad(seconds)}.{pad(centiseconds)}
           </div>
-          
-          <div className="text-right">
-            {player && (
-              <div className="text-sm text-gray-600">
-                Welcome, <span className="font-semibold">{player.name}</span>
-              </div>
-            )}
-            <div
-              className={`text-xs ${
-                isConnected ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              {isConnected ? "🟢 Connected" : "🔴 Disconnected"}
-            </div>
-          </div>
+          <div className="text-lg text-gray-600 mb-8">Your time</div>
+          <button
+            className="w-full px-4 py-3 text-white rounded-lg font-semibold transition-colors"
+            style={{ backgroundColor: "#800080" }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#6b006b")}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = "#800080")}
+            onClick={() => {
+              setGameState("entering");
+              setPlayerName("");
+              setTimer(0);
+              setShowFinalTime(false);
+            }}
+          >
+            Run Again
+          </button>
         </div>
-      </div>
+      </main>
+    );
+  }
 
-      {/* Error display */}
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 mx-4 mt-4 rounded">
-          {error}
-        </div>
-      )}
-
-      {/* Round status */}
-      {round && (
-        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 mx-4 mt-4 rounded">
-          {isRoundActive ? (
-            <div className="text-center font-semibold">
-              🚀 Hunt is ACTIVE! {round.players.length} players participating
-            </div>
-          ) : round.finish ? (
-            <div className="text-center">
-              🏁 Round finished!{" "}
-              {round.winner ? `Winner: ${round.winner.name}` : "No winner yet"}
-            </div>
-          ) : (
-            <div className="text-center">
-              ⏳ Waiting for round to start... {round.players.length} players
-              ready
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Main content */}
-      <div className="p-4">
-        {currentView === "leaderboard" ? (
-          <Leaderboard 
-            playerResult={player?.itemsFound === 3 ? {
-              name: player.name,
-              timestamp: new Date().toISOString(),
-              speed: Math.round(player.totalTime || 0)
-            } : undefined}
-          />
-        ) : (
-          <Hunting
-            isActive={currentView === "hunting"}
-            onComplete={handleHuntComplete}
-            playerName={playerName}
-          />
-        )}
-      </div>
-
-      {/* Admin Panel */}
-      {showAdminPanel && (
-        <AdminPanel onClose={() => setShowAdminPanel(false)} />
-      )}
-    </main>
-  );
+  // Main run screen
+  if (gameState === "playing") {
+    return (
+      <Hunting
+        isActive={true}
+        onComplete={handleHuntComplete}
+        playerName={playerName}
+      />
+    );
+  }
+  // Removed: leaderboard, multiplayer, and round status UI for solo mode
 }

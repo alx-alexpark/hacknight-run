@@ -30,6 +30,7 @@ export default function CameraFeed({
     setDetectionCount(0);
   }, [currentItem]);
 
+  // Only set up the camera stream and detector once, on mount
   useEffect(() => {
     let stream: MediaStream | null = null;
     let detector: ObjectDetector | null = null;
@@ -55,7 +56,21 @@ export default function CameraFeed({
         });
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          await videoRef.current.play();
+          setTimeout(() => {
+            if (videoRef.current) {
+              videoRef.current.play().catch((err) => {
+                if (
+                  err &&
+                  err.message &&
+                  err.message.includes("The play() request was interrupted")
+                ) {
+                  // No-op
+                } else {
+                  console.error("video.play() error:", err);
+                }
+              });
+            }
+          }, 0);
         }
         setLoading(false);
         detectFrame();
@@ -72,10 +87,20 @@ export default function CameraFeed({
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Only update canvas size and draw if video is ready
+      if (video.videoWidth > 0 && video.videoHeight > 0) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      } else {
+        // Skip this frame if video is not ready
+        if (isMounted) {
+          animationId = requestAnimationFrame(detectFrame);
+        }
+        return;
+      }
 
       const detections = await detector.detect(video);
       let targetDetected = false;
@@ -130,7 +155,6 @@ export default function CameraFeed({
           onItemFound();
         }
       } else if (!targetDetected) {
-        // Reset counter if target not detected
         consecutiveDetectionsRef.current = 0;
         setDetectionCount(0);
       }
@@ -146,7 +170,7 @@ export default function CameraFeed({
       if (animationId) cancelAnimationFrame(animationId);
       if (stream) stream.getTracks().forEach((t) => t.stop());
     };
-  }, [currentItem, onItemFound]);
+  }, [onItemFound]);
 
   return (
     <div className="w-full h-full relative">

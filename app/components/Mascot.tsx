@@ -7,6 +7,7 @@ interface MascotProps {
   isActive: boolean;
   serverCountdown?: number; // Use server countdown if provided
   repositionToCorner?: boolean; // Whether to reposition to corner after countdown
+  countdownStart?: number; // For solo/local mode, force countdown reset
 }
 
 export default function Mascot({
@@ -14,10 +15,18 @@ export default function Mascot({
   isActive,
   serverCountdown,
   repositionToCorner = false,
+  countdownStart,
 }: MascotProps) {
   const [countdown, setCountdown] = useState<number>(
-    serverCountdown ?? CONFIG.MASCOT_COUNTDOWN_SECONDS
+    serverCountdown ?? countdownStart ?? CONFIG.MASCOT_COUNTDOWN_SECONDS
   );
+  // Reset countdown when mascot is shown (isActive becomes true)
+  useEffect(() => {
+    if (isActive && serverCountdown === undefined) {
+      setCountdown(countdownStart ?? CONFIG.MASCOT_COUNTDOWN_SECONDS);
+      setIsShrunken(false);
+    }
+  }, [isActive, countdownStart, serverCountdown]);
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isShrunken, setIsShrunken] = useState(false);
 

@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Mascot from "./Mascot";
 import CameraFeed from "./CameraFeed";
-import { useGameEvents } from "../hooks/useGameEvents";
+import { HUNT_ITEMS } from "../constants";
 
 interface HuntingProps {
   isActive: boolean;
@@ -15,7 +15,10 @@ export default function Hunting({
   onComplete,
   playerName,
 }: HuntingProps) {
-  const [showMascot, setShowMascot] = useState(true);
+  // Use a unique key for each run to prevent Mascot remount/reset
+  const [runKey, setRunKey] = useState(() => Date.now());
+  // Skip mascot/countdown for instant start
+  const [showMascot, setShowMascot] = useState(false);
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [isProcessingItem, setIsProcessingItem] = useState(false);
   const [networkError, setNetworkError] = useState<string | null>(null);
@@ -23,15 +26,25 @@ export default function Hunting({
   // Track start time for each item
   const itemStartTimeRef = useRef<number | null>(null);
 
-  // Get real-time game data
-  const { round, player } = useGameEvents(playerName);
+
+  // For solo mode: pick 3 random items from HUNT_ITEMS
+  const [items] = useState(() => {
+    // Shuffle and pick 3
+    const enabled = HUNT_ITEMS.filter((item) => item.enabled !== false);
+    for (let i = enabled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [enabled[i], enabled[j]] = [enabled[j], enabled[i]];
+    }
+    return enabled.slice(0, 3);
+  });
+
 
   // Start timing when we begin hunting an item (after mascot countdown)
   useEffect(() => {
-    if (!showMascot && round?.gameActive && !itemStartTimeRef.current) {
+    if (!showMascot && !itemStartTimeRef.current) {
       itemStartTimeRef.current = Date.now();
     }
-  }, [showMascot, round?.gameActive]);
+  }, [showMascot]);
 
   // Reset timing when moving to next item
   useEffect(() => {
@@ -42,83 +55,38 @@ export default function Hunting({
     setShowMascot(false);
   };
 
+
+  // Whenever mascot is shown, reset runKey to force Mascot remount and countdown reset
+  useEffect(() => {
+    if (showMascot) {
+      setRunKey(Date.now());
+    }
+  }, [showMascot]);
+
+  // When the hunt completes, show mascot for next run
+  useEffect(() => {
+    if (!isActive) {
+      setShowMascot(true);
+    }
+  }, [isActive]);
+
   const handleItemFound = async () => {
-    if (!player?.id || !round?.currentItems || isProcessingItem) return;
-
+    if (isProcessingItem) return;
     setIsProcessingItem(true);
-
     try {
       // Calculate actual time taken for this item
       const timeNow = Date.now();
       const timeTaken = itemStartTimeRef.current
-        ? Math.round((timeNow - itemStartTimeRef.current) / 1000) // Convert to seconds
-        : 30; // Fallback to 30 seconds if timing failed
-
+        ? Math.round((timeNow - itemStartTimeRef.current) / 1000)
+        : 30;
       console.log(`Item ${currentItemIndex} found in ${timeTaken} seconds`);
-
-      // Record the item found on the server with retry logic
-      let retries = 3;
-      let success = false;
-
-      while (retries > 0 && !success) {
-        try {
-          const response = await fetch("/api/item-found", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              playerId: player.id,
-              itemIndex: currentItemIndex,
-              timeTaken: timeTaken,
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-
-          success = true;
-        } catch (error) {
-          retries--;
-          console.warn(
-            `Failed to record item found (${3 - retries}/3):`,
-            error
-          );
-
-          if (retries > 0) {
-            // Wait 1 second before retrying
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-          }
-        }
-      }
-
-      if (!success) {
-        console.error("Failed to record item found after 3 retries");
-        setNetworkError(
-          "Failed to save progress. Your hunt will continue offline."
-        );
-        // Clear error after 5 seconds
-        setTimeout(() => setNetworkError(null), 5000);
-      } else {
-        setNetworkError(null);
-      }
-
       // Move to next item or complete
-      if (currentItemIndex < round.currentItems.length - 1) {
+      if (currentItemIndex < items.length - 1) {
         setCurrentItemIndex((prev) => prev + 1);
         // itemStartTimeRef will be reset by useEffect
       } else {
-        // Hunt complete - all 3 items found
+        // Hunt complete - all items found
         console.log("All items found! Completing hunt...");
-        onComplete();
-      }
-    } catch (error) {
-      console.error("Error in handleItemFound:", error);
-      // Still allow progression on error
-      if (currentItemIndex < (round?.currentItems?.length || 3) - 1) {
-        setCurrentItemIndex((prev) => prev + 1);
-      } else {
         onComplete();
       }
     } finally {
@@ -126,72 +94,73 @@ export default function Hunting({
     }
   };
 
-  if (!isActive || !round?.currentItems) return null;
 
-  const currentItem = round.currentItems[currentItemIndex];
-  const totalItems = round.currentItems.length;
-  const itemsCompleted = player?.itemsFound || 0;
+  if (!isActive || !items.length) return null;
+
+  const currentItem = items[currentItemIndex];
+  const totalItems = items.length;
+  const itemsCompleted = currentItemIndex; // For solo mode
 
   return (
     <div className="fixed inset-0 bg-black z-40">
       {/* Mascot countdown overlay */}
       <Mascot
+        key={runKey}
         isActive={showMascot}
         onCountdownComplete={handleMascotComplete}
-        serverCountdown={round?.countdown}
         repositionToCorner={true}
+        countdownStart={5}
       />
 
       {/* Camera feed (shown after mascot countdown) */}
-      {!showMascot && (
-        <div className="w-full h-full">
-          <CameraFeed currentItem={currentItem} onItemFound={handleItemFound} />
+      {/* CameraFeed is always mounted, but hidden when mascot is shown */}
+      <div className="w-full h-full" style={{ display: showMascot ? 'none' : 'block' }}>
+        <CameraFeed currentItem={currentItem} onItemFound={handleItemFound} />
 
-          {/* Enhanced Progress indicator */}
-          <div className="absolute top-4 right-4 bg-black bg-opacity-90 text-white px-4 py-3 rounded-lg border-2 border-green-400">
-            <div className="text-center">
-              <div className="text-lg font-bold text-green-400">
-                {currentItemIndex + 1} / {totalItems}
-              </div>
-              <div className="text-xs text-gray-300">Items Found</div>
-              {itemsCompleted > 0 && (
-                <div className="text-xs text-green-300 mt-1">
-                  ✅ Completed: {itemsCompleted}
-                </div>
-              )}
+        {/* Enhanced Progress indicator */}
+        <div className="absolute top-4 right-4 bg-black bg-opacity-90 text-white px-4 py-3 rounded-lg border-2 border-green-400">
+          <div className="text-center">
+            <div className="text-lg font-bold text-green-400">
+              {currentItemIndex + 1} / {totalItems}
             </div>
-          </div>
-
-          {/* Current item details */}
-          <div className="absolute top-4 left-4 right-20 bg-black bg-opacity-90 text-white p-4 rounded-lg border border-blue-400">
-            <h3 className="text-lg font-bold mb-2 text-blue-400">
-              Find: {currentItem.name}
-            </h3>
-            {currentItem.prompt && (
-              <p className="text-sm italic text-gray-300">
-                {currentItem.prompt}
-              </p>
+            <div className="text-xs text-gray-300">Items Found</div>
+            {itemsCompleted > 0 && (
+              <div className="text-xs text-green-300 mt-1">
+                ✅ Completed: {itemsCompleted}
+              </div>
             )}
           </div>
+        </div>
 
-          {/* Network error indicator */}
-          {networkError && (
-            <div className="absolute top-20 left-4 right-4 bg-red-500 text-white p-3 rounded-lg border border-red-600 animate-pulse">
-              <div className="flex items-center gap-2">
-                <span>⚠️</span>
-                <span className="text-sm">{networkError}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Completion status for all items */}
-          {itemsCompleted === totalItems && (
-            <div className="absolute bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg font-bold animate-pulse">
-              🎉 All Items Found! Returning to leaderboard...
-            </div>
+        {/* Current item details */}
+        <div className="absolute top-4 left-4 right-20 bg-black bg-opacity-90 text-white p-4 rounded-lg border border-blue-400">
+          <h3 className="text-lg font-bold mb-2 text-blue-400">
+            Find: {currentItem.name}
+          </h3>
+          {currentItem.prompt && (
+            <p className="text-sm italic text-gray-300">
+              {currentItem.prompt}
+            </p>
           )}
         </div>
-      )}
+
+        {/* Network error indicator */}
+        {networkError && (
+          <div className="absolute top-20 left-4 right-4 bg-red-500 text-white p-3 rounded-lg border border-red-600 animate-pulse">
+            <div className="flex items-center gap-2">
+              <span>⚠️</span>
+              <span className="text-sm">{networkError}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Completion status for all items */}
+        {itemsCompleted === totalItems && (
+          <div className="absolute bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg font-bold animate-pulse">
+            🎉 All Items Found!
+          </div>
+        )}
+      </div>
     </div>
   );
 }
