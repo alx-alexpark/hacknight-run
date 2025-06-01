@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import Hunting from "./components/Hunting";
 import AdminPanel from "./components/AdminPanel";
+import Countdown from "./components/Countdown";
 
 export default function Home() {
   const [playerName, setPlayerName] = useState("");
@@ -11,6 +12,7 @@ export default function Home() {
   const [timer, setTimer] = useState(0); // ms
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [showFinalTime, setShowFinalTime] = useState(false);
+  const [showCountdown, setShowCountdown] = useState(false);
   // Timer logic for solo run
   useEffect(() => {
     if (gameState === "playing") {
@@ -538,13 +540,22 @@ export default function Home() {
             onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#6b006b")}
             onMouseLeave={e => (e.currentTarget.style.backgroundColor = "#800080")}
             onClick={() => {
-              setTimer(0);
-              setShowFinalTime(false);
-              setGameState("playing");
+              setShowCountdown(true);
             }}
+            disabled={showCountdown}
           >
             Start Run 🚦
           </button>
+          {showCountdown && (
+            <Countdown
+              onComplete={() => {
+                setShowCountdown(false);
+                setTimer(0);
+                setShowFinalTime(false);
+                setGameState("playing");
+              }}
+            />
+          )}
         </div>
       </main>
     );
