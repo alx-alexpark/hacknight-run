@@ -337,7 +337,7 @@ export default function Home() {
       <main className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-blue-500 to-purple-600">
         <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
           <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">
-            🔍 Scavange
+            Scavange
           </h1>
           <p className="text-center text-gray-600 mb-6">
             Enter your name to join the hunt!

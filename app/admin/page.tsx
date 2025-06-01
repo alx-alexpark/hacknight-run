@@ -177,7 +177,7 @@ export default function AdminPage() {
                   <tr key={player.id} className="border-b hover:bg-gray-50">
                     <td className="p-3 border">{player.name}</td>
                     <td className="p-3 border">
-                      {(player.itemsFound ?? 0) === 3 ? "✅ Completed" : (player.itemsFound ?? 0) > 0 ? "🔍 Hunting" : "⏳ Waiting"}
+                      {(player.itemsFound ?? 0) === 3 ? "Completed" : (player.itemsFound ?? 0) > 0 ? "Hunting" : "Waiting"}
                     </td>
                     <td className="p-3 border">{player.itemsFound ?? 0}/3</td>
                   </tr>
