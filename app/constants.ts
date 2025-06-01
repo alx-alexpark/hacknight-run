@@ -1,10 +1,10 @@
 // Configuration constants
 export const CONFIG = {
     // API Configuration
-    API_BASE_URL: "https://4a9e-2a09-bac1-76a0-b68-00-6a-104.ngrok-free.app", // Change this to your actual API URL
+    API_BASE_URL: "http://localhost:8000", // Change this to your actual API URL
 
     // WebSocket Configuration
-    WEBSOCKET_URL: "wss://4a9e-2a09-bac1-76a0-b68-00-6a-104.ngrok-free.app/ws", // WebSocket URL for the same server
+    WEBSOCKET_URL: "ws://localhost:8000/ws", // WebSocket URL for the same server
 
     // Mascot Configuration
     MASCOT_COUNTDOWN_SECONDS: 5,

@@ -11,8 +11,15 @@ export default function Home() {
     "leaderboard"
   );
 
-  const { player, round, isConnected, error, connect, isRoundActive } =
-    useWebSocket(playerName);
+  const {
+    player,
+    round,
+    isConnected,
+    error,
+    connect,
+    disconnect,
+    isRoundActive,
+  } = useWebSocket(playerName);
 
   useEffect(() => {
     if (isNameSet && playerName) {
