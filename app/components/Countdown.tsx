@@ -14,6 +14,12 @@ const images = [
 export default function Countdown({ onComplete }: CountdownProps) {
   const [step, setStep] = useState(0);
 
+  // Play sound on mount (when countdown starts)
+  useEffect(() => {
+    const audio = new Audio("/start-sfx.mp3");
+    audio.play().catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (step < images.length) {
       const timeout = setTimeout(() => setStep(step + 1), 1000);
