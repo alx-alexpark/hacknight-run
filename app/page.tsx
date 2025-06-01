@@ -319,6 +319,15 @@ export default function Home() {
     setGameState("waiting");
   };
 
+  // Play mall.mp3 when the game starts
+  useEffect(() => {
+    if (gameState === "playing") {
+      const audio = new Audio("/mall.mp3");
+      audio.loop = true;
+      audio.play().catch(() => {});
+    }
+  }, [gameState]);
+
   // No longer needed since admin now starts the game
   // (Removed old multiplayer handleHuntComplete)
 
