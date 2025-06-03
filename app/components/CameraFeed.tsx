@@ -137,8 +137,12 @@ export default function CameraFeed({
 
         // Highlight target item in green, others in blue
         const isTargetItem =
-          label.toLowerCase().includes(currentItemRef.current.name.toLowerCase()) ||
-          currentItemRef.current.name.toLowerCase().includes(label.toLowerCase());
+          label
+            .toLowerCase()
+            .includes(currentItemRef.current.name.toLowerCase()) ||
+          currentItemRef.current.name
+            .toLowerCase()
+            .includes(label.toLowerCase());
 
         ctx.strokeStyle = isTargetItem ? "#00FF00" : "#0080FF";
         ctx.lineWidth = isTargetItem ? 4 : 2;

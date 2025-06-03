@@ -316,7 +316,8 @@ export default function Home() {
     if (gameState !== "entering") return;
 
     // Preload WASM, tflite, mp3s, and mascot/sprite images
-    const wasmUrl = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm/vision_wasm_internal.wasm";
+    const wasmUrl =
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm/vision_wasm_internal.wasm";
     const tfliteUrl = "/efficientdet_lite0.tflite";
     const audioUrls = ["/mall.mp3", "/start-sfx.mp3"];
     const spriteUrls = [
