@@ -36,9 +36,28 @@ export default function CameraObjectDetection() {
         detector = await getObjectDetector();
 
         // Request camera
-        stream = await navigator.mediaDevices.getUserMedia({
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter((d) => d.kind === "videoinput");
+        let selectedDeviceId: string | undefined;
+        if (videoDevices.length > 0) {
+          // Prefer environment-facing if available
+          const envCam = videoDevices.find(
+            (d) =>
+              d.label.toLowerCase().includes("back") ||
+              d.label.toLowerCase().includes("environment")
+          );
+          selectedDeviceId = envCam?.deviceId || videoDevices[0].deviceId;
+        }
+        let constraints: MediaStreamConstraints = {
           video: { facingMode: "environment" },
-        });
+        };
+        if (selectedDeviceId) {
+          constraints = { video: { deviceId: { exact: selectedDeviceId } } };
+        }
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (selectedDeviceId) {
+          localStorage.setItem("preferredCameraDeviceId", selectedDeviceId);
+        }
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           // Wait for metadata to be loaded before calling play()

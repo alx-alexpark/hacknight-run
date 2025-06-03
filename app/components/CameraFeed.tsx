@@ -39,43 +39,44 @@ export default function CameraFeed({
 
     async function setup() {
       try {
+        // Camera support check
         if (
           typeof navigator === "undefined" ||
           !navigator.mediaDevices ||
           !navigator.mediaDevices.getUserMedia
         ) {
-          throw new Error("Camera access not supported");
+          throw new Error(
+            "Camera access is not supported in this environment. Please use a modern browser over HTTPS."
+          );
         }
 
         // Use cached AI model instead of downloading each time
         console.log("🤖 Getting cached AI model for CameraFeed...");
         detector = await getObjectDetector();
 
-        stream = await navigator.mediaDevices.getUserMedia({
+        // Try to use the same camera device as the test (CameraObjectDetection)
+        let constraints: MediaStreamConstraints = {
           video: { facingMode: "environment" },
-        });
+        };
+        const lastDeviceId = localStorage.getItem("preferredCameraDeviceId");
+        if (lastDeviceId) {
+          constraints = { video: { deviceId: { exact: lastDeviceId } } };
+        }
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          setTimeout(() => {
-            if (videoRef.current) {
-              videoRef.current.play().catch((err) => {
-                if (
-                  err &&
-                  err.message &&
-                  err.message.includes("The play() request was interrupted")
-                ) {
-                  // No-op
-                } else {
-                  console.error("video.play() error:", err);
-                }
-              });
-            }
-          }, 0);
+          // Wait for metadata to be loaded before calling play()
+          await new Promise<void>((resolve) => {
+            videoRef.current!.onloadedmetadata = () => {
+              resolve();
+            };
+          });
+          await videoRef.current.play();
         }
         setLoading(false);
         detectFrame();
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Camera error");
+      } catch (err: any) {
+        setError(err.message || "Camera or model error");
         setLoading(false);
       }
     }
@@ -86,7 +87,6 @@ export default function CameraFeed({
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-
 
       // Only update canvas size and draw if video is ready
       if (video.videoWidth > 0 && video.videoHeight > 0) {
@@ -147,8 +147,10 @@ export default function CameraFeed({
       if (targetDetected && !itemFoundTriggeredRef.current) {
         consecutiveDetectionsRef.current += 1;
         setDetectionCount(consecutiveDetectionsRef.current);
-        console.log(`🎯 Target detected! Count: ${consecutiveDetectionsRef.current}/2`);
-        
+        console.log(
+          `🎯 Target detected! Count: ${consecutiveDetectionsRef.current}/2`
+        );
+
         if (consecutiveDetectionsRef.current >= 2) {
           console.log("✅ Found! Two consecutive detections.");
           itemFoundTriggeredRef.current = true;
