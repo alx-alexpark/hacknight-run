@@ -90,7 +90,18 @@ export default function Hunting({
     }
   };
 
+  // Call onComplete when all items are found (never call useEffect conditionally)
+  useEffect(() => {
+    if (currentItemIndex >= items.length) {
+      onComplete();
+    }
+  }, [currentItemIndex, items.length, onComplete]);
+
   if (!isActive || !items.length) return null;
+  if (currentItemIndex < 0 || currentItemIndex >= items.length) {
+    // Optionally show a loading spinner or nothing
+    return null;
+  }
 
   const currentItem = items[currentItemIndex];
   const totalItems = items.length;

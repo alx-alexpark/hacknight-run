@@ -28,6 +28,12 @@ export default function CameraFeed({
     consecutiveDetectionsRef.current = 0;
     itemFoundTriggeredRef.current = false;
     setDetectionCount(0);
+  }, [currentItem?.name]); // Use currentItem.name as dependency for stability
+
+  // Always use the latest currentItem in the detection loop
+  const currentItemRef = useRef(currentItem);
+  useEffect(() => {
+    currentItemRef.current = currentItem;
   }, [currentItem]);
 
   // Only set up the camera stream and detector once, on mount
@@ -88,23 +94,33 @@ export default function CameraFeed({
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      // Only update canvas size and draw if video is ready
-      if (video.videoWidth > 0 && video.videoHeight > 0) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      // Always match canvas size to video display size (CSS and buffer)
+      const videoRect = video.getBoundingClientRect();
+      canvas.style.width = videoRect.width + "px";
+      canvas.style.height = videoRect.height + "px";
+      canvas.width = videoRect.width;
+      canvas.height = videoRect.height;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Calculate scaling and offset for object-fit: cover
+      const videoAspect = video.videoWidth / video.videoHeight;
+      const displayAspect = videoRect.width / videoRect.height;
+      let scale, xOffset, yOffset;
+      if (displayAspect > videoAspect) {
+        // Video covers width, crop top/bottom
+        scale = videoRect.width / video.videoWidth;
+        xOffset = 0;
+        yOffset = (videoRect.height - video.videoHeight * scale) / 2;
       } else {
-        // Skip this frame if video is not ready
-        if (isMounted) {
-          animationId = requestAnimationFrame(detectFrame);
-        }
-        return;
+        // Video covers height, crop sides
+        scale = videoRect.height / video.videoHeight;
+        xOffset = (videoRect.width - video.videoWidth * scale) / 2;
+        yOffset = 0;
       }
 
+      // Run MediaPipe detection
       const detections = await detector.detect(video);
       let targetDetected = false;
-
       detections.detections.forEach((det: unknown) => {
         const detection = det as {
           boundingBox: {
@@ -121,28 +137,34 @@ export default function CameraFeed({
 
         // Highlight target item in green, others in blue
         const isTargetItem =
-          label.toLowerCase().includes(currentItem.name.toLowerCase()) ||
-          currentItem.name.toLowerCase().includes(label.toLowerCase());
+          label.toLowerCase().includes(currentItemRef.current.name.toLowerCase()) ||
+          currentItemRef.current.name.toLowerCase().includes(label.toLowerCase());
 
         ctx.strokeStyle = isTargetItem ? "#00FF00" : "#0080FF";
         ctx.lineWidth = isTargetItem ? 4 : 2;
-        ctx.strokeRect(box.originX, box.originY, box.width, box.height);
-
+        // Scale and offset bounding box to match displayed video
+        ctx.strokeRect(
+          box.originX * scale + xOffset,
+          box.originY * scale + yOffset,
+          box.width * scale,
+          box.height * scale
+        );
         ctx.font = "16px Arial";
         ctx.fillStyle = isTargetItem ? "#00FF00" : "#0080FF";
         ctx.fillText(
           `${label} (${Math.round(score * 100)}%)${isTargetItem ? " ✓" : ""}`,
-          box.originX,
-          box.originY > 20 ? box.originY - 5 : 10
+          box.originX * scale + xOffset,
+          box.originY * scale + yOffset > 20
+            ? box.originY * scale + yOffset - 5
+            : 10
         );
 
         // Check if target item is found with good confidence
-        const requiredConfidence = currentItem.confidence || 0.5;
+        const requiredConfidence = currentItemRef.current.confidence || 0.5;
         if (isTargetItem && score > requiredConfidence) {
           targetDetected = true;
         }
       });
-
       // Simple consecutive detection logic - 2 detections in a row = found
       if (targetDetected && !itemFoundTriggeredRef.current) {
         consecutiveDetectionsRef.current += 1;
@@ -172,7 +194,7 @@ export default function CameraFeed({
       if (animationId) cancelAnimationFrame(animationId);
       if (stream) stream.getTracks().forEach((t) => t.stop());
     };
-  }, [onItemFound]);
+  }, []); // FIX: Only run once on mount
 
   return (
     <div className="w-full h-full relative">
@@ -225,6 +247,11 @@ export default function CameraFeed({
         <canvas
           ref={canvasRef}
           className="absolute top-0 left-0 w-full h-full pointer-events-none"
+          style={{
+            background: "transparent",
+            zIndex: 10,
+            pointerEvents: "none",
+          }}
         />
       </div>
 

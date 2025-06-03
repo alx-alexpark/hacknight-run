@@ -83,10 +83,30 @@ export default function CameraObjectDetection() {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+
+      // Always match canvas size to video display size (CSS and buffer)
+      const videoRect = video.getBoundingClientRect();
+      canvas.style.width = videoRect.width + "px";
+      canvas.style.height = videoRect.height + "px";
+      canvas.width = videoRect.width;
+      canvas.height = videoRect.height;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Calculate scaling and offset for object-fit: cover
+      const videoAspect = video.videoWidth / video.videoHeight;
+      const displayAspect = videoRect.width / videoRect.height;
+      let scale, xOffset, yOffset;
+      if (displayAspect > videoAspect) {
+        // Video covers width, crop top/bottom
+        scale = videoRect.width / video.videoWidth;
+        xOffset = 0;
+        yOffset = (videoRect.height - video.videoHeight * scale) / 2;
+      } else {
+        // Video covers height, crop sides
+        scale = videoRect.height / video.videoHeight;
+        xOffset = (videoRect.width - video.videoWidth * scale) / 2;
+        yOffset = 0;
+      }
 
       // Run MediaPipe detection
       const detections = await detector.detect(video);
@@ -95,7 +115,13 @@ export default function CameraObjectDetection() {
         const box = det.boundingBox;
         ctx.strokeStyle = "#00FF00";
         ctx.lineWidth = 2;
-        ctx.strokeRect(box.originX, box.originY, box.width, box.height);
+        // Scale and offset bounding box to match displayed video
+        ctx.strokeRect(
+          box.originX * scale + xOffset,
+          box.originY * scale + yOffset,
+          box.width * scale,
+          box.height * scale
+        );
         ctx.font = "16px Arial";
         ctx.fillStyle = "#00FF00";
         const label = det.categories[0]?.categoryName || "object";
@@ -104,8 +130,10 @@ export default function CameraObjectDetection() {
           : "";
         ctx.fillText(
           `${label} (${score}%)`,
-          box.originX,
-          box.originY > 20 ? box.originY - 5 : 10
+          box.originX * scale + xOffset,
+          box.originY * scale + yOffset > 20
+            ? box.originY * scale + yOffset - 5
+            : 10
         );
         found = true;
       });
@@ -150,6 +178,9 @@ export default function CameraObjectDetection() {
           top: 0,
           left: 0,
           width: "100%",
+          height: "100%",
+          background: "transparent",
+          zIndex: 10,
           pointerEvents: "none",
         }}
       />

@@ -36,18 +36,18 @@ export const HUNT_ITEMS: FindItem[] = [
         confidence: 0.5,
         enabled: true
     },
-    {
-        name: "vase",
-        prompt: "Flowers I hold in elegant grace / decorative beauty in this place!",
-        confidence: 0.4,
-        enabled: true
-    },
-    {
-        name: "dining table",
-        prompt: "Gather around me for meals each day / where family and friends come to stay!",
-        confidence: 0.4,
-        enabled: true
-    },
+    // {
+    //     name: "vase",
+    //     prompt: "Flowers I hold in elegant grace / decorative beauty in this place!",
+    //     confidence: 0.4,
+    //     enabled: true
+    // },
+    // {
+    //     name: "dining table",
+    //     prompt: "Gather around me for meals each day / where family and friends come to stay!",
+    //     confidence: 0.4,
+    //     enabled: true
+    // },
     {
         name: "cell phone",
         prompt: "In your pocket or hand I stay / calls and texts throughout the day!",
