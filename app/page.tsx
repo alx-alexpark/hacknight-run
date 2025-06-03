@@ -6,10 +6,17 @@ import Countdown from "./components/Countdown";
 export default function Home() {
   const [playerName, setPlayerName] = useState("");
   const [gameState, setGameState] = useState<
-    "entering" | "camera_permission" | "ready" | "playing" | "finished" | "waiting"
+    | "entering"
+    | "camera_permission"
+    | "ready"
+    | "playing"
+    | "finished"
+    | "waiting"
   >("entering");
   const [timer, setTimer] = useState(0); // ms
-  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(
+    null
+  );
   const [showFinalTime, setShowFinalTime] = useState(false);
   const [showCountdown, setShowCountdown] = useState(false);
   // Timer logic for solo run
@@ -496,11 +503,17 @@ export default function Home() {
               onClick={handleCameraPermission}
               className="w-full px-4 py-3 text-white rounded-lg font-semibold transition-colors"
               style={{ backgroundColor: "#800080" }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#6b006b")}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#800080")}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = "#6b006b")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "#800080")
+              }
               disabled={requestingCamera}
             >
-              {requestingCamera ? "Requesting Camera..." : "Allow Camera Access"}
+              {requestingCamera
+                ? "Requesting Camera..."
+                : "Allow Camera Access"}
             </button>
           )}
         </div>
@@ -513,13 +526,22 @@ export default function Home() {
     return (
       <main className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600">
         <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md text-center">
-          <h1 className="text-3xl font-bold mb-4 text-gray-800">Ready to Run?</h1>
-          <p className="mb-6 text-gray-600">Hi {playerName}! When you click below, your scavenger run will begin and the timer will start. Find all items as fast as you can!</p>
+          <h1 className="text-3xl font-bold mb-4 text-gray-800">
+            Ready to Run?
+          </h1>
+          <p className="mb-6 text-gray-600">
+            Hi {playerName}! When you click below, your scavenger run will begin
+            and the timer will start. Find all items as fast as you can!
+          </p>
           <button
             className="w-full px-4 py-3 text-white rounded-lg font-semibold transition-colors"
             style={{ backgroundColor: "#800080" }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#6b006b")}
-            onMouseLeave={e => (e.currentTarget.style.backgroundColor = "#800080")}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.backgroundColor = "#6b006b")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.backgroundColor = "#800080")
+            }
             onClick={() => {
               setShowCountdown(true);
             }}
@@ -550,11 +572,14 @@ export default function Home() {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     const centiseconds = Math.floor((timer % 1000) / 10);
-    const pad = (n: number, l = 2) => n.toString().padStart(l, l === 2 ? "0" : "00");
+    const pad = (n: number, l = 2) =>
+      n.toString().padStart(l, l === 2 ? "0" : "00");
     return (
       <main className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-green-400 to-blue-600">
         <div className="bg-white rounded-2xl shadow-2xl p-12 w-full max-w-lg text-center">
-          <h1 className="text-4xl font-bold mb-8 text-gray-800">🏁 Run Complete!</h1>
+          <h1 className="text-4xl font-bold mb-8 text-gray-800">
+            🏁 Run Complete!
+          </h1>
           <div className="text-7xl font-mono font-extrabold text-purple-700 mb-6 tracking-widest">
             {pad(minutes)}:{pad(seconds)}.{pad(centiseconds)}
           </div>
@@ -562,8 +587,12 @@ export default function Home() {
           <button
             className="w-full px-4 py-3 text-white rounded-lg font-semibold transition-colors"
             style={{ backgroundColor: "#800080" }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#6b006b")}
-            onMouseLeave={e => (e.currentTarget.style.backgroundColor = "#800080")}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.backgroundColor = "#6b006b")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.backgroundColor = "#800080")
+            }
             onClick={() => {
               setGameState("entering");
               setPlayerName("");

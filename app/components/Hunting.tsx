@@ -103,7 +103,6 @@ export default function Hunting({
         key={runKey}
         isActive={showMascot}
         onCountdownComplete={handleMascotComplete}
-        repositionToCorner={true}
         countdownStart={5}
       />
 
