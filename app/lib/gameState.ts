@@ -10,16 +10,7 @@ let currentRound: Round = {
     winner: null,
 };
 
-const leaderboardData: LeaderboardEntry[] = [
-    {
-        name: "Julian",
-        timestamp: "2025-02-05T00:00:00.000Z",
-        speed: 44
-    }
-];
-
-// Connected SSE clients with their player IDs
-const connectedClients = new Map<ReadableStreamDefaultController, string>();
+let countdownInterval: NodeJS.Timeout | null = null;
 
 export function getCurrentRound(): Round {
     return { ...currentRound };
@@ -27,13 +18,13 @@ export function getCurrentRound(): Round {
 
 export function setCurrentRound(round: Round): void {
     currentRound = { ...round };
-    broadcastRoundUpdate();
+    // broadcastRoundUpdate();
 }
 
 export function addPlayerToRound(player: Player): void {
     if (!currentRound.players.find(p => p.id === player.id)) {
         currentRound.players.push({ ...player, isReady: false });
-        broadcastRoundUpdate();
+        // broadcastRoundUpdate();
     }
 }
 
@@ -41,16 +32,8 @@ export function removePlayerFromRound(playerId: string): void {
     const index = currentRound.players.findIndex(p => p.id === playerId);
     if (index !== -1) {
         currentRound.players.splice(index, 1);
-        broadcastRoundUpdate();
+        // broadcastRoundUpdate();
     }
-}
-
-export function getLeaderboard(): LeaderboardEntry[] {
-    return [...leaderboardData].sort((a, b) => b.speed - a.speed);
-}
-
-export function addToLeaderboard(item: LeaderboardEntry): void {
-    leaderboardData.push(item);
 }
 
 export function setPlayerReady(playerId: string, isReady: boolean): void {
@@ -66,21 +49,19 @@ export function setPlayerReady(playerId: string, isReady: boolean): void {
             startCountdown();
         }
 
-        broadcastRoundUpdate();
+        // broadcastRoundUpdate();
     }
 }
-
-let countdownInterval: NodeJS.Timeout | null = null;
 
 export function startCountdown(): void {
     currentRound.countdown = 5;
     currentRound.currentItems = selectRandomItems();
-    broadcastRoundUpdate();
+    // broadcastRoundUpdate();
 
     countdownInterval = setInterval(() => {
         if (currentRound.countdown && currentRound.countdown > 1) {
             currentRound.countdown--;
-            broadcastRoundUpdate();
+            // broadcastRoundUpdate();
         } else {
             // Countdown finished, start the game
             currentRound.countdown = 0;
@@ -93,11 +74,11 @@ export function startCountdown(): void {
                 countdownInterval = null;
             }
 
-            broadcastAnnouncement({
-                message: "Game Started! Find the items!",
-                type: "game_start"
-            });
-            broadcastRoundUpdate();
+            // broadcastAnnouncement({
+            //     message: "Game Started! Find the items!",
+            //     type: "game_start"
+            // });
+            // broadcastRoundUpdate();
         }
     }, 1000);
 }
@@ -117,11 +98,11 @@ export function stopGame(): void {
         countdownInterval = null;
     }
 
-    broadcastAnnouncement({
-        message: "Game stopped by admin",
-        type: "game_end"
-    });
-    broadcastRoundUpdate();
+    // broadcastAnnouncement({
+    //     message: "Game stopped by admin",
+    //     type: "game_end"
+    // });
+    // broadcastRoundUpdate();
 }
 
 export function playerFoundItem(playerId: string, itemIndex: number, timeTaken: number): void {
@@ -139,24 +120,15 @@ export function playerFoundItem(playerId: string, itemIndex: number, timeTaken: 
 
         const itemName = currentRound.currentItems?.[itemIndex]?.name || "item";
 
-        broadcastAnnouncement({
-            message: `${player.name} found ${itemName}!`,
-            type: "item_found",
-            playerName: player.name,
-            itemName: itemName,
-            itemCount: player.itemsFound
-        });
+        // broadcastAnnouncement({
+        //     message: `${player.name} found ${itemName}!`,
+        //     type: "item_found",
+        //     playerName: player.name,
+        //     itemName: itemName,
+        //     itemCount: player.itemsFound
+        // });
 
-        // Check if player completed all items
-        if (player.itemsFound === 3) {
-            addToLeaderboard({
-                name: player.name,
-                timestamp: new Date().toISOString(),
-                speed: Math.round(player.totalTime || 0)
-            });
-        }
-
-        broadcastRoundUpdate();
+        // broadcastRoundUpdate();
     }
 }
 
@@ -169,54 +141,42 @@ export function areAllPlayersReady(): boolean {
         currentRound.players.every(p => p.isReady);
 }
 
-export function addSSEClient(controller: ReadableStreamDefaultController, playerId: string): void {
-    connectedClients.set(controller, playerId);
-}
+// function broadcastRoundUpdate(): void {
+//     const message = {
+//         t: "round",
+//         round: currentRound
+//     };
 
-export function removeSSEClient(controller: ReadableStreamDefaultController): void {
-    const playerId = connectedClients.get(controller);
-    connectedClients.delete(controller);
+//     // Assuming connectedClients is a global or higher scoped variable
+//     connectedClients.forEach((playerId, controller) => {
+//         try {
+//             controller.enqueue(`data: ${JSON.stringify(message)}\n\n`);
+//         } catch (error) {
+//             console.error('Error broadcasting to SSE client:', error);
+//             connectedClients.delete(controller);
+//         }
+//     });
+// }
 
-    // Also remove the player from the round if they disconnect
-    if (playerId) {
-        removePlayerFromRound(playerId);
-    }
-}
+// function broadcastAnnouncement(announcement: {
+//     message: string;
+//     type: "item_found" | "game_start" | "game_end";
+//     playerName?: string;
+//     itemName?: string;
+//     itemCount?: number;
+// }): void {
+//     const message = {
+//         t: "announcement",
+//         announcement
+//     };
 
-function broadcastRoundUpdate(): void {
-    const message = {
-        t: "round",
-        round: currentRound
-    };
-
-    connectedClients.forEach((playerId, controller) => {
-        try {
-            controller.enqueue(`data: ${JSON.stringify(message)}\n\n`);
-        } catch (error) {
-            console.error('Error broadcasting to SSE client:', error);
-            connectedClients.delete(controller);
-        }
-    });
-}
-
-function broadcastAnnouncement(announcement: {
-    message: string;
-    type: "item_found" | "game_start" | "game_end";
-    playerName?: string;
-    itemName?: string;
-    itemCount?: number;
-}): void {
-    const message = {
-        t: "announcement",
-        announcement
-    };
-
-    connectedClients.forEach((playerId, controller) => {
-        try {
-            controller.enqueue(`data: ${JSON.stringify(message)}\n\n`);
-        } catch (error) {
-            console.error('Error broadcasting announcement to SSE client:', error);
-            connectedClients.delete(controller);
-        }
-    });
-}
+//     // Assuming connectedClients is a global or higher scoped variable
+//     connectedClients.forEach((playerId, controller) => {
+//         try {
+//             controller.enqueue(`data: ${JSON.stringify(message)}\n\n`);
+//         } catch (error) {
+//             console.error('Error broadcasting announcement to SSE client:', error);
+//             connectedClients.delete(controller);
+//         }
+//     });
+// }

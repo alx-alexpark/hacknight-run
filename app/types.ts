@@ -30,22 +30,3 @@ export interface Round {
   currentItems?: FindItem[]; // 3 random items for this round
   gameActive?: boolean;
 }
-
-export interface WebSocketMessage {
-  t: "player" | "round" | "announcement";
-  player?: Player;
-  round?: Round;
-  announcement?: {
-    message: string;
-    type: "item_found" | "game_start" | "game_end";
-    playerName?: string;
-    itemName?: string;
-    itemCount?: number;
-  };
-}
-
-export interface AppState {
-  currentView: "leaderboard" | "hunting";
-  currentItemIndex: number;
-  isHuntingActive: boolean;
-}

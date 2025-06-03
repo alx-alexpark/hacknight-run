@@ -5,9 +5,6 @@ export const CONFIG = {
     // API Configuration - now using Next.js API routes
     API_BASE_URL: "/api", // Next.js API routes
 
-    // Server-Sent Events URL (replaces WebSocket)
-    EVENTS_URL: "/api/events", // Server-Sent Events for real-time updates
-
     // Mascot Configuration
     MASCOT_COUNTDOWN_SECONDS: 5,
     MASCOT_FRAME_SWITCH_INTERVAL: 500, // milliseconds between frame switches

@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Hunting from "./components/Hunting";
-import AdminPanel from "./components/AdminPanel";
 import Countdown from "./components/Countdown";
 
 export default function Home() {
@@ -41,7 +40,6 @@ export default function Home() {
     setShowFinalTime(true);
   };
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [showingPreview, setShowingPreview] = useState(false);
   const [requestingCamera, setRequestingCamera] = useState(false);
@@ -52,10 +50,6 @@ export default function Home() {
     resolution?: string;
     deviceLabel?: string;
   } | null>(null);
-
-  // Multiplayer/game event logic removed for solo mode
-
-  // Multiplayer/game event logic removed for solo mode
 
   // Check camera permissions when entering camera_permission state
   useEffect(() => {
@@ -173,25 +167,6 @@ export default function Home() {
       }
     };
   }, [cameraStream]);
-
-  // Multiplayer/game event logic removed for solo mode
-
-  // Admin panel key sequence: "admin"
-  useEffect(() => {
-    let keySequence: string[] = [];
-
-    const handleKeyPress = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase();
-      keySequence = [...keySequence, key].slice(-5); // Keep last 5 keys
-      if (keySequence.join("") === "admin") {
-        setShowAdminPanel(true);
-        keySequence = [];
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyPress);
-    return () => window.removeEventListener("keydown", handleKeyPress);
-  }, []);
 
   const handleNameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -327,9 +302,6 @@ export default function Home() {
       audio.play().catch(() => {});
     }
   }, [gameState]);
-
-  // No longer needed since admin now starts the game
-  // (Removed old multiplayer handleHuntComplete)
 
   // Name entry screen
   if (gameState === "entering") {

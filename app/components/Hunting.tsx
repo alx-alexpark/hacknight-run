@@ -21,11 +21,9 @@ export default function Hunting({
   const [showMascot, setShowMascot] = useState(false);
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [isProcessingItem, setIsProcessingItem] = useState(false);
-  const [networkError, setNetworkError] = useState<string | null>(null);
 
   // Track start time for each item
   const itemStartTimeRef = useRef<number | null>(null);
-
 
   // For solo mode: pick 3 random items from HUNT_ITEMS
   const [items] = useState(() => {
@@ -37,7 +35,6 @@ export default function Hunting({
     }
     return enabled.slice(0, 3);
   });
-
 
   // Start timing when we begin hunting an item (after mascot countdown)
   useEffect(() => {
@@ -54,7 +51,6 @@ export default function Hunting({
   const handleMascotComplete = () => {
     setShowMascot(false);
   };
-
 
   // Whenever mascot is shown, reset runKey to force Mascot remount and countdown reset
   useEffect(() => {
@@ -94,7 +90,6 @@ export default function Hunting({
     }
   };
 
-
   if (!isActive || !items.length) return null;
 
   const currentItem = items[currentItemIndex];
@@ -114,7 +109,10 @@ export default function Hunting({
 
       {/* Camera feed (shown after mascot countdown) */}
       {/* CameraFeed is always mounted, but hidden when mascot is shown */}
-      <div className="w-full h-full" style={{ display: showMascot ? 'none' : 'block' }}>
+      <div
+        className="w-full h-full"
+        style={{ display: showMascot ? "none" : "block" }}
+      >
         <CameraFeed currentItem={currentItem} onItemFound={handleItemFound} />
 
         {/* Enhanced Progress indicator */}
@@ -138,21 +136,9 @@ export default function Hunting({
             Find: {currentItem.name}
           </h3>
           {currentItem.prompt && (
-            <p className="text-sm italic text-gray-300">
-              {currentItem.prompt}
-            </p>
+            <p className="text-sm italic text-gray-300">{currentItem.prompt}</p>
           )}
         </div>
-
-        {/* Network error indicator */}
-        {networkError && (
-          <div className="absolute top-20 left-4 right-4 bg-red-500 text-white p-3 rounded-lg border border-red-600 animate-pulse">
-            <div className="flex items-center gap-2">
-              <span>⚠️</span>
-              <span className="text-sm">{networkError}</span>
-            </div>
-          </div>
-        )}
 
         {/* Completion status for all items */}
         {itemsCompleted === totalItems && (
