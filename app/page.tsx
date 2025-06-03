@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import Hunting from "./components/Hunting";
 import Countdown from "./components/Countdown";
+import { getObjectDetector } from "./lib/modelCache";
 
 export default function Home() {
   const [playerName, setPlayerName] = useState("");
@@ -308,6 +309,46 @@ export default function Home() {
       audio.loop = true;
       audio.play().catch(() => {});
     }
+  }, [gameState]);
+
+  // Preload assets and warm up model cache when entering name screen
+  useEffect(() => {
+    if (gameState !== "entering") return;
+
+    // Preload WASM, tflite, mp3s, and mascot/sprite images
+    const wasmUrl = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm/vision_wasm_internal.wasm";
+    const tfliteUrl = "/efficientdet_lite0.tflite";
+    const audioUrls = ["/mall.mp3", "/start-sfx.mp3"];
+    const spriteUrls = [
+      "/sprites/countdown1.png",
+      "/sprites/countdown2.png",
+      "/sprites/countdown3.png",
+      "/sprites/excited.png",
+      "/sprites/nervous.png",
+      "/sprites/resting.png",
+      "/sprites/thumbsup.png",
+      "/sprites/uhoh.png",
+      "/sprites/yeah.png",
+    ];
+
+    // Preload WASM
+    fetch(wasmUrl).catch(() => {});
+    // Preload tflite model
+    fetch(tfliteUrl).catch(() => {});
+    // Preload audio
+    audioUrls.forEach((url) => {
+      const audio = new Audio();
+      audio.src = url;
+      // Not playing, just loading
+      audio.load();
+    });
+    // Preload images
+    spriteUrls.forEach((url) => {
+      const img = new window.Image();
+      img.src = url;
+    });
+    // Warm up the model cache in the background
+    getObjectDetector().catch(() => {});
   }, [gameState]);
 
   // Name entry screen
