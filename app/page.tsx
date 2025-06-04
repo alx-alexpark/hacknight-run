@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Hunting from "./components/Hunting";
 import Countdown from "./components/Countdown";
 import { getObjectDetector } from "./lib/modelCache";
@@ -302,12 +302,23 @@ export default function Home() {
     setGameState("waiting");
   };
 
+  const musicRef = useRef<HTMLAudioElement | null>(null);
+
   // Play mall.mp3 when the game starts
   useEffect(() => {
     if (gameState === "playing") {
-      const audio = new Audio("/mall.mp3");
-      audio.loop = true;
-      audio.play().catch(() => {});
+      if (!musicRef.current) {
+        musicRef.current = new Audio("/mall.mp3");
+        musicRef.current.loop = true;
+      }
+      musicRef.current.currentTime = 0;
+      musicRef.current.volume = 1;
+      musicRef.current.play().catch(() => {});
+    }
+    // Stop music immediately when not playing
+    if (gameState !== "playing" && musicRef.current) {
+      musicRef.current.pause();
+      musicRef.current.currentTime = 0;
     }
   }, [gameState]);
 
